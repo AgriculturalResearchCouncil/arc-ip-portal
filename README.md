@@ -16,7 +16,7 @@ A secure, enterprise-grade digital platform for managing the complete intellectu
 
 ---
 
-## 📋 Table of Contents
+## Table of Contents
 
 - [Overview](#overview)
 - [Key Features](#key-features)
@@ -38,7 +38,7 @@ A secure, enterprise-grade digital platform for managing the complete intellectu
 
 ---
 
-## 📖 Overview
+## Overview
 
 The ARC IP Portal is a secure, enterprise-grade digital platform designed to manage the complete intellectual property lifecycle within the Agricultural Research Council (ARC). It supports the full IP lifecycle from disclosure and evaluation through protection, licensing, commercialization, revenue generation, and compliance reporting.
 
@@ -46,56 +46,56 @@ The system provides a centralized repository for all ARC IP assets while support
 
 ---
 
-## ✨ Key Features
+## Key Features
 
-### 🔬 Invention Disclosures
+### Invention Disclosures
 - Submit and manage invention disclosures
 - Track disclosure status and workflow
 - Attach supporting documents
 - Assign inventors and contributors
 
-### 🛡️ IP Asset Management
+### IP Asset Management
 - Register and track patents, PBR, trademarks, copyright, and more
 - View comprehensive IP portfolio
 - Track protection status and renewals
 - Manage IP relationships
 
-### 📊 Technology Evaluation
+### Technology Evaluation
 - Score and evaluate technologies
 - Multi-dimensional evaluation (Technical, IP, Commercial)
 - Track evaluation outcomes and recommendations
 
-### 📄 Licensing Management
+### Licensing Management
 - Create and manage licensing agreements
 - Track licensees and contacts
 - Monitor obligations and milestones
 - Manage territories and royalty terms
 
-### 💰 Royalty & Revenue Management
+### Royalty and Revenue Management
 - Track royalty payments
 - Generate royalty schedules
 - Monitor overdue payments
 - Revenue reporting and analytics
 
-### 📈 Commercialisation Monitoring
+### Commercialisation Monitoring
 - Track commercialisation projects
 - Monitor market readiness
 - Track revenue and milestones
 - Commercialisation partner management
 
-### 📁 Document Management
+### Document Management
 - SharePoint integration for document storage
 - Version control and metadata management
 - Document search and retrieval
 - Document lifecycle management
 
-### 📊 Reporting & Dashboards
+### Reporting and Dashboards
 - Executive dashboard with key metrics
 - TTO operational dashboard
 - Researcher dashboard
 - Customizable reports
 
-### 🔒 Security & Compliance
+### Security and Compliance
 - Role-Based Access Control (RBAC)
 - Row-Level Security (RLS)
 - Complete audit trail
@@ -103,21 +103,23 @@ The system provides a centralized repository for all ARC IP assets while support
 
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 ### Backend
+
 | Technology | Version | Purpose |
 |------------|---------|---------|
 | Node.js | 20 LTS | Runtime environment |
 | Express.js | 4.x | Web framework |
 | Prisma | 5+ | ORM |
 | PostgreSQL | 16+ | Database |
-| Redis | 7+ | Cache & session store |
+| Redis | 7+ | Cache and session store |
 | Winston | 3+ | Logging |
 | Jest | Latest | Testing |
 | JWT | Latest | Authentication |
 
 ### Frontend
+
 | Technology | Version | Purpose |
 |------------|---------|---------|
 | Angular | 17+ | Web framework |
@@ -128,6 +130,7 @@ The system provides a centralized repository for all ARC IP assets while support
 | Chart.js | Latest | Charts and graphs |
 
 ### Infrastructure
+
 | Technology | Version | Purpose |
 |------------|---------|---------|
 | IIS | 10+ | Web server |
@@ -138,7 +141,7 @@ The system provides a centralized repository for all ARC IP assets while support
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 arc-ip-portal/
 │
 ├── backend/ # Node.js + Express.js API
@@ -216,7 +219,7 @@ text
 
 ---
 
-## 🔧 Prerequisites
+## Prerequisites
 
 ### Required Software
 
@@ -250,7 +253,7 @@ text
 
 ---
 
-## 🚀 Installation
+## Installation
 
 ### Clone the Repository
 
@@ -323,7 +326,7 @@ GRANT ALL ON SCHEMA public TO arc_user;
 
 \c arc_ip_portal_prod
 GRANT ALL ON SCHEMA public TO arc_user;
-🌍 Environment Variables
+Environment Variables
 Backend (.env)
 env
 # Database
@@ -371,7 +374,7 @@ API_URL="http://localhost:3000/api"
 ARC_AUTH_URL="http://155.240.161.22:3010"
 APP_NAME="ARC IP Portal"
 APP_VERSION="1.0.0"
-📚 API Documentation
+API Documentation
 Authentication Endpoints
 Method	Endpoint	Description	Access
 POST	/api/auth/login	Login with AD credentials	Public
@@ -407,7 +410,7 @@ When the backend is running, Swagger documentation is available at:
 
 text
 http://localhost:3000/api/docs
-💻 Development Workflow
+Development Workflow
 Branch Strategy
 Branch	Purpose	Protection
 main	Production-ready code	2 approvals required
@@ -490,7 +493,7 @@ ci: CI/CD changes
 
 build: Build system changes
 
-🧪 Testing
+Testing
 Backend Tests
 bash
 # Navigate to backend
@@ -532,7 +535,7 @@ Statements	80%
 Branches	75%
 Functions	80%
 Lines	80%
-🚢 Deployment
+Deployment
 CI/CD Pipeline
 Automated deployment via GitHub Actions:
 
@@ -614,7 +617,7 @@ module.exports = {
     time: true
   }]
 };
-🔒 Security
+Security
 Security Architecture
 Layer	Security Controls
 Client Layer	HTTPS only, secure cookie storage, input sanitization
@@ -646,7 +649,7 @@ Executive	Strategic oversight	Read-only dashboards and reports
 Institute Manager	Manages institute IP	View institute IP
 ICT	System administration	System maintenance
 System Administrator	Full system administration	Full system access
-📊 Monitoring
+Monitoring
 Monitoring Stack
 Metrics Collection: Prometheus
 
@@ -660,15 +663,15 @@ APM: Custom metrics
 
 Key Metrics
 Metric	Source	Threshold
-API Response Time	Node.js	>500ms → Warning
-API Error Rate	Node.js	>5% → Critical
-CPU Usage	Node.js/IIS	>80% → Warning
-Memory Usage	Node.js/IIS	>85% → Critical
-Database Connections	PostgreSQL	>80 → Warning
-Database Query Time	PostgreSQL	>100ms → Warning
-Active Sessions	Redis	>500 → Scale up
-Disk Usage	Server	>85% → Warning
-Authentication Failures	ARC Auth	>10/min → Alert
+API Response Time	Node.js	>500ms -> Warning
+API Error Rate	Node.js	>5% -> Critical
+CPU Usage	Node.js/IIS	>80% -> Warning
+Memory Usage	Node.js/IIS	>85% -> Critical
+Database Connections	PostgreSQL	>80 -> Warning
+Database Query Time	PostgreSQL	>100ms -> Warning
+Active Sessions	Redis	>500 -> Scale up
+Disk Usage	Server	>85% -> Warning
+Authentication Failures	ARC Auth	>10/min -> Alert
 Logging Strategy
 javascript
 // Winston logging configuration
@@ -688,7 +691,7 @@ const logger = winston.createLogger({
     })
   ]
 });
-🔧 Troubleshooting
+Troubleshooting
 Common Issues
 Port 3000 already in use:
 
@@ -737,7 +740,7 @@ npx prisma db execute --file scripts/health-check.sql
 
 # Redis health check
 redis-cli ping
-🤝 Contributing
+Contributing
 Getting Started
 Fork the repository
 
@@ -757,7 +760,7 @@ Code Review Checklist
 □ Performance is optimized
 Please read CONTRIBUTING.md for full details on our code of conduct and the process for submitting pull requests.
 
-📞 Contact
+Contact
 Primary Contacts
 Role	Name	Email
 Project Manager	Dr Keoagile William Modisakeng	modisakengkw@arc.agric.za
@@ -773,12 +776,12 @@ Address: 1134 Park Street, Hatfield, Pretoria
 
 PO Box: PO Box 8783, Pretoria, 0001
 
-📄 License
+License
 This project is proprietary software owned by the Agricultural Research Council (ARC). All rights reserved.
 
 For Internal Use Only - Unauthorized distribution, modification, or use outside the ARC organization is strictly prohibited.
 
-📝 Changelog
+Changelog
 Version 1.0.0 (Expected: December 2026)
 Initial Release
 
@@ -828,7 +831,7 @@ SharePoint Online/On-Prem
 
 SMTP Email Notifications
 
-🏆 Acknowledgments
+Acknowledgments
 Agricultural Research Council (ARC) for funding and support
 
 Technology Transfer Office (TTO) for requirements definition
@@ -841,20 +844,7 @@ Finance Department for financial requirements
 
 All ARC Researchers for their invaluable feedback
 
-📊 Status Badges
-https://github.com/agriculturalresearchcouncil/arc-ip-portal/actions/workflows/deploy.yml/badge.svg
-https://img.shields.io/badge/license-ARC%2520Internal-blue.svg
-https://img.shields.io/badge/node-v20-green.svg
-https://img.shields.io/badge/postgresql-16-blue.svg
-https://img.shields.io/badge/angular-17-red.svg
-https://img.shields.io/badge/ionic-7-blue.svg
-https://img.shields.io/badge/express-4.x-lightgrey.svg
-https://img.shields.io/badge/prisma-5-blue.svg
-https://img.shields.io/badge/redis-7-red.svg
-https://img.shields.io/badge/IIS-10-blue.svg
-https://img.shields.io/badge/CI%252FCD-GitHub%2520Actions-blue.svg
-
-🚀 Quick Start
+Quick Start
 bash
 # Clone the repository
 git clone https://github.com/agriculturalresearchcouncil/arc-ip-portal.git
@@ -877,4 +867,4 @@ ionic serve
 # Open browser to http://localhost:4200
 ARC Intellectual Property Management Portal — Protecting and commercializing ARC innovations.
 
-© Agricultural Research Council (ARC) - All Rights Reserved
+(c) Agricultural Research Council (ARC) - All Rights Reserved
