@@ -1,3 +1,5 @@
+properly formatted README.md
+
 # ARC Intellectual Property Management Portal
 
 [![CI/CD](https://github.com/agriculturalresearchcouncil/arc-ip-portal/actions/workflows/deploy.yml/badge.svg)](https://github.com/agriculturalresearchcouncil/arc-ip-portal/actions/workflows/deploy.yml)
