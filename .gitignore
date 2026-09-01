@@ -1,50 +1,283 @@
-# Node
-node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnpm-debug.log*
+# ============================================
+# OS / IDE / Editor
+# ============================================
 
-# Environment
-.env
-.env.local
-.env.*.local
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msm
+*.msp
+*.lnk
 
-# Build output
-/dist/
-/build/
-/out/
-/.next/
-
-# IDE
-.idea/
-.vscode/
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
 *.swp
 *.swo
 *~
+.directory
 
-# OS
-.DS_Store
-Thumbs.db
+# Linux
+.directory
+*.pid
+*.seed
+*.pid.lock
 
-# Logs
-logs/
-*.log
+# IDE / Editors
+.idea/
+.vscode/
+*.iml
+*.iws
+*.ipr
+.project
+.classpath
+.settings/
+*.sublime-project
+*.sublime-workspace
+.tern-project
+*.code-workspace
 
-# Testing
-/coverage/
-.nyc_output/
+# ============================================
+# Environment & Secrets
+# ============================================
 
-# Temporary
-tmp/
-temp/
-*.tmp
+# Environment files
+.env
+.env.local
+.env.*.local
+.env.production
+.env.staging
+.env.development
+.env.test
 
-# Backups
-*.bak
-*.backup
-
-# Secrets
+# Secrets and certificates
 *.pem
 *.key
-*.cert
+*.crt
+*.p12
+*.pfx
+*.cer
+*.jks
+*.p7b
+
+# ============================================
+# Backend Specific
+# ============================================
+
+# Dependencies
+backend/node_modules/
+backend/package-lock.json
+backend/yarn.lock
+backend/.npm
+backend/.pnpm-store/
+
+# Build output
+backend/dist/
+backend/build/
+backend/out/
+backend/.babel-cache
+backend/.tsbuildinfo
+
+# Logs
+backend/logs/
+backend/*.log
+backend/npm-debug.log*
+backend/yarn-debug.log*
+backend/yarn-error.log*
+backend/lerna-debug.log*
+
+# Testing
+backend/coverage/
+backend/.nyc_output/
+backend/.jest/
+backend/*.test.js
+backend/*.spec.js
+backend/__tests__/
+
+# Database
+backend/*.sqlite
+backend/*.db
+backend/*.db-journal
+backend/prisma/*.db
+backend/prisma/migrations/*.sql
+backend/prisma/seed.ts
+backend/prisma/seed.js
+backend/prisma/dev.db*
+backend/prisma/*.sqlite
+
+# Uploads / Temp
+backend/uploads/
+backend/temp/
+backend/tmp/
+backend/*.tmp
+backend/static/
+backend/public/uploads/
+
+# Prisma
+backend/prisma/.env
+backend/prisma/generated/
+
+# ============================================
+# Frontend Specific
+# ============================================
+
+# Dependencies
+frontend/node_modules/
+frontend/package-lock.json
+frontend/yarn.lock
+frontend/.npm
+frontend/.pnpm-store/
+
+# Build output
+frontend/dist/
+frontend/build/
+frontend/out/
+frontend/www/
+frontend/.angular/
+frontend/.ionic/
+frontend/.stencil/
+
+# Testing
+frontend/coverage/
+frontend/.nyc_output/
+frontend/.jest/
+frontend/*.test.ts
+frontend/*.spec.ts
+frontend/__tests__/
+frontend/screenshots/
+frontend/test-results/
+
+# Capacitor
+frontend/android/
+frontend/ios/
+frontend/*.apk
+frontend/*.ipa
+frontend/*.aab
+frontend/.capacitor/
+
+# Ionic
+frontend/ionic.config.json
+frontend/www/ (if using CLI build)
+
+# ============================================
+# Deployment
+# ============================================
+
+deployment/*.zip
+deployment/*.tar.gz
+deployment/backups/
+deployment/temp/
+deployment/*.publish
+deployment/iis/*.bkp
+
+# ============================================
+# Documentation
+# ============================================
+
+docs/_build/
+docs/api/*.json
+docs/api/*.yaml
+docs/api/*.html
+docs/user-guide/*.pdf
+docs/user-guide/*.epub
+
+# ============================================
+# GitHub / CI / CD
+# ============================================
+
+.github/workflows/*.bak
+.github/copilot/
+.github/*.tmp
+
+# ============================================
+# Database / Data Files
+# ============================================
+
+*.sqlite
+*.sqlite3
+*.db
+*.db-journal
+*.mdb
+*.accdb
+*.bak
+*.backup
+*.dump
+*.sql.bak
+
+# ============================================
+# Logs & Cache
+# ============================================
+
+*.log
+*.tmp
+*.temp
+*.cache
+*.pid
+*.seed
+*.pid.lock
+.npm/
+.yarn/
+.pnpm/
+.eslintcache
+.parcel-cache/
+.vercel/
+
+# ============================================
+# Miscellaneous
+# ============================================
+
+*.zip
+*.tar.gz
+*.rar
+*.7z
+*.bak
+*.old
+*.orig
+*.rej
+*.patch
+*.diff
+*.swp
+*.swo
+*~
+.ftpconfig
+.remote-sync.json
+.sass-cache/
+*.css.map
+*.js.map
+*.ts.map
+*.tgz
+
+# ============================================
+# Project Specific
+# ============================================
+
+# Uploaded files
+uploads/
+temp/
+tmp/
+*.tmp
+
+# Reports
+reports/
+*.xlsx
+*.xls
+*.csv
+
+# Secrets
+secrets/
+*.env
+*.pem
+*.key
+
+# Local configuration
+*.local.json
+*.local.js
+*.local.ts
