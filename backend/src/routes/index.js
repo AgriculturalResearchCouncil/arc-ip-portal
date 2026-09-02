@@ -8,7 +8,7 @@
  * @requires express
  */
 
-// src/routes/index.js - Updated with commercialisation routes
+// src/routes/index.js - Updated with report routes
 const express = require('express');
 const router = express.Router();
 
@@ -36,6 +36,9 @@ const evaluationRoutes = require('./evaluation.routes');
 // Commercialisation Routes
 const commercialisationRoutes = require('./commercialisation.routes');
 
+// Report Routes
+const reportRoutes = require('./report.routes');
+
 // API routes
 router.use('/auth', authRoutes);
 router.use('/users', userRoutes);
@@ -60,6 +63,9 @@ router.use('/evaluations', evaluationRoutes);
 // Commercialisation endpoints
 router.use('/commercialisations', commercialisationRoutes);
 
+// Report endpoints
+router.use('/reports', reportRoutes);
+
 // API info
 router.get('/', (req, res) => {
     res.json({
@@ -81,7 +87,8 @@ router.get('/', (req, res) => {
             designs: '/api/v1/designs',
             licences: '/api/v1/licences',
             evaluations: '/api/v1/evaluations',
-            commercialisations: '/api/v1/commercialisations'
+            commercialisations: '/api/v1/commercialisations',
+            reports: '/api/v1/reports'
         }
     });
 });
