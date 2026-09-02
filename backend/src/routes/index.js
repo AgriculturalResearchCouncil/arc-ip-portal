@@ -8,6 +8,7 @@
  * @requires express
  */
 
+// src/routes/index.js - Updated with licence routes
 const express = require('express');
 const router = express.Router();
 
@@ -26,6 +27,9 @@ const copyrightRoutes = require('./copyright.routes');
 const tradeSecretRoutes = require('./trade-secret.routes');
 const designRoutes = require('./design.routes');
 
+// Licensing Routes
+const licenceRoutes = require('./licence.routes');
+
 // API routes
 router.use('/auth', authRoutes);
 router.use('/users', userRoutes);
@@ -40,6 +44,9 @@ router.use('/trademarks', trademarkRoutes);
 router.use('/copyrights', copyrightRoutes);
 router.use('/trade-secrets', tradeSecretRoutes);
 router.use('/designs', designRoutes);
+
+// Licensing endpoints
+router.use('/licences', licenceRoutes);
 
 // API info
 router.get('/', (req, res) => {
@@ -59,7 +66,8 @@ router.get('/', (req, res) => {
             trademarks: '/api/v1/trademarks',
             copyrights: '/api/v1/copyrights',
             tradeSecrets: '/api/v1/trade-secrets',
-            designs: '/api/v1/designs'
+            designs: '/api/v1/designs',
+            licences: '/api/v1/licences'
         }
     });
 });
