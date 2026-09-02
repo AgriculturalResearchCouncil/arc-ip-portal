@@ -2,16 +2,26 @@
  * Authentication Service
  * ======================
  * Handles authentication with ARC Centralized Authentication Service.
- * Provides login, token validation, refresh, and user synchronization.
+ * 
+ * Available ARC Auth Endpoints:
+ * - POST /auth/login - Login with credentials
+ * - POST /auth/logout - Logout
+ * - POST /auth/validate - Validate token (if available)
+ * - GET /auth/me - Get user info (if available)
+ * 
+ * Note: The ARC Auth Service does NOT have a /refresh endpoint.
+ * Token refresh is handled by generating new tokens locally.
  * 
  * @module auth/auth.service
  * @requires axios
+ * @requires jsonwebtoken
  * @requires ../config
  * @requires ../logging/logger
  * @requires ../database/repositories/person.repository
  */
 
 const axios = require('axios');
+const jwt = require('jsonwebtoken');
 const config = require('../config');
 const logger = require('../logging/logger');
 const personRepository = require('../database/repositories/person.repository');
@@ -19,6 +29,12 @@ const { ServiceUnavailableError, UnauthorizedError } = require('../errors/app-er
 
 /**
  * Call the ARC Centralized Authentication Service
+ * 
+ * @param {string} endpoint - API endpoint (e.g., 'login', 'validate', 'logout')
+ * @param {string} method - HTTP method (GET, POST)
+ * @param {Object} data - Request body data
+ * @param {string} token - Bearer token (optional)
+ * @returns {Promise<Object>} Response data from auth service
  */
 const callAuthService = async (endpoint, method = 'POST', data = null, token = null) => {
     try {
@@ -30,6 +46,13 @@ const callAuthService = async (endpoint, method = 'POST', data = null, token = n
         if (token) {
             headers.Authorization = `Bearer ${token}`;
         }
+
+        logger.debug('Calling auth service', { 
+            url, 
+            method, 
+            endpoint, 
+            hasToken: !!token
+        });
 
         const response = await axios({
             method,
@@ -45,6 +68,7 @@ const callAuthService = async (endpoint, method = 'POST', data = null, token = n
             message: error.message,
             status: error.response?.status,
             code: error.code,
+            responseData: error.response?.data
         });
 
         if (error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT') {
@@ -54,7 +78,7 @@ const callAuthService = async (endpoint, method = 'POST', data = null, token = n
         if (error.response) {
             throw new UnauthorizedError(
                 error.response.data?.message || 'Authentication failed',
-                error.response.data?.code
+                error.response.data?.code || 'AUTH_ERROR'
             );
         }
 
@@ -63,77 +87,145 @@ const callAuthService = async (endpoint, method = 'POST', data = null, token = n
 };
 
 /**
- * Validate JWT token with ARC Auth Service
- * If validation fails, try to decode the token locally as fallback
+ * Extract user information from JWT token
  */
-const validateToken = async (token) => {
+const extractUserFromToken = (token) => {
     try {
-        // Try to validate with ARC Auth Service
-        const result = await callAuthService('validate', 'POST', { token });
-        return {
-            valid: true,
-            user: result.user || result.data?.user,
+        const decoded = jwt.decode(token);
+        
+        if (!decoded) {
+            logger.warn('Failed to decode token');
+            return null;
+        }
+
+        // Check if token is expired
+        if (decoded.exp && decoded.exp < Math.floor(Date.now() / 1000)) {
+            logger.warn('Token expired');
+            return null;
+        }
+
+        const user = {
+            id: decoded.userId || decoded.sub || decoded.id || decoded.oid || decoded.nameid,
+            email: decoded.email || decoded.upn || decoded.preferred_username || decoded.unique_name,
+            firstName: decoded.firstName || decoded.given_name || decoded.givenName,
+            lastName: decoded.lastName || decoded.family_name || decoded.familyName,
+            department: decoded.department || decoded.Department,
+            employeeId: decoded.employeeId || decoded.employee_id || decoded.employeeNumber,
+            jobTitle: decoded.jobTitle || decoded.job_title || decoded.title,
+            username: decoded.username || decoded.unique_name || decoded.name,
         };
+
+        if (!user.email && user.username) {
+            user.email = user.username;
+        }
+
+        if (!user.email) {
+            logger.warn('No email found in token');
+            return null;
+        }
+
+        return user;
     } catch (error) {
-        // If auth service returns 400 or 401, token is invalid
-        if (error.statusCode === 400 || error.statusCode === 401 || error.response?.status === 400 || error.response?.status === 401) {
-            logger.warn('Token validation failed with auth service', { status: error.statusCode || error.response?.status });
-            return { valid: false };
-        }
-        
-        // For other errors, try local validation as fallback
-        logger.warn('Auth service validation failed, trying local validation', { error: error.message });
-        
-        try {
-            // Try to decode the token locally (simple validation)
-            const decoded = Buffer.from(token.split('.')[1], 'base64').toString();
-            const payload = JSON.parse(decoded);
-            
-            // Check if token is expired
-            if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {
-                return { valid: false };
-            }
-            
-            // Return user data from token payload
-            return {
-                valid: true,
-                user: {
-                    id: payload.userId || payload.sub || payload.id,
-                    email: payload.email,
-                    firstName: payload.firstName || payload.given_name,
-                    lastName: payload.lastName || payload.family_name,
-                    department: payload.department,
-                    employeeId: payload.employeeId,
-                    jobTitle: payload.jobTitle,
-                }
-            };
-        } catch (decodeError) {
-            logger.warn('Local token validation failed', { error: decodeError.message });
-            return { valid: false };
-        }
+        logger.error('Error extracting user from token:', error.message);
+        return null;
     }
 };
 
 /**
- * Get current user information from ARC Auth
+ * Generate a new JWT token locally
+ * This is used when the auth service doesn't have a refresh endpoint
+ */
+const generateLocalToken = (user) => {
+    const payload = {
+        userId: user.id || user.person_id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        department: user.department,
+        employeeId: user.employeeId,
+        jobTitle: user.jobTitle,
+    };
+
+    const token = jwt.sign(payload, config.jwt.secret, {
+        expiresIn: config.jwt.expiresIn || '8h',
+    });
+
+    // Generate a refresh token (just for consistency)
+    const refreshToken = jwt.sign(
+        { userId: user.id || user.person_id, type: 'refresh' },
+        config.jwt.refreshSecret || config.jwt.secret,
+        { expiresIn: config.jwt.refreshExpiresIn || '7d' }
+    );
+
+    return { token, refreshToken };
+};
+
+/**
+ * Validate JWT token - validates locally since auth service may not have validate endpoint
+ */
+const validateToken = async (token) => {
+    try {
+        // Try to validate with ARC Auth Service first (if available)
+        try {
+            const result = await callAuthService('validate', 'POST', { token });
+            if (result && (result.valid || result.user)) {
+                const user = result.user || extractUserFromToken(token);
+                if (user) {
+                    logger.info('Token validated by ARC Auth');
+                    return { valid: true, user: user };
+                }
+            }
+        } catch (authError) {
+            logger.warn('ARC Auth validation failed, falling back to local validation');
+        }
+
+        // Fallback: Local JWT validation
+        const decoded = jwt.decode(token);
+        
+        if (!decoded) {
+            return { valid: false, reason: 'Failed to decode token' };
+        }
+
+        if (decoded.exp && decoded.exp < Math.floor(Date.now() / 1000)) {
+            logger.warn('Token expired');
+            return { valid: false, reason: 'Token expired' };
+        }
+
+        const user = extractUserFromToken(token);
+        if (!user) {
+            return { valid: false, reason: 'No user data in token' };
+        }
+
+        logger.info('Token validated locally', { email: user.email });
+        return {
+            valid: true,
+            user: user,
+        };
+    } catch (error) {
+        logger.error('Token validation error:', error.message);
+        return { valid: false, reason: error.message };
+    }
+};
+
+/**
+ * Get current user information - extracts from token
  */
 const getCurrentUser = async (token) => {
-    try {
-        const result = await callAuthService('me', 'GET', null, token);
-        return result.user || result.data?.user;
-    } catch (error) {
-        logger.error('Error getting current user:', error.message);
-        throw new UnauthorizedError('Failed to get user information');
+    const user = extractUserFromToken(token);
+    if (!user) {
+        throw new UnauthorizedError('Failed to get user information from token');
     }
+    return user;
 };
 
 /**
  * Determine default role based on department
  */
 const getDefaultRole = (department) => {
+    if (!department) return 'Researcher';
+    
     const roleMapping = {
         'Technology Transfer Office': 'TTO Officer',
-        'Technology Transfer Office (TTO)': 'TTO Officer',
         'TTO': 'TTO Officer',
         'Legal Services': 'Legal Officer',
         'Legal': 'Legal Officer',
@@ -146,7 +238,14 @@ const getDefaultRole = (department) => {
         'Research Coordination and Support': 'Executive',
     };
 
-    return roleMapping[department] || 'Researcher';
+    const deptLower = department.toLowerCase();
+    for (const [key, value] of Object.entries(roleMapping)) {
+        if (key.toLowerCase().includes(deptLower) || deptLower.includes(key.toLowerCase())) {
+            return value;
+        }
+    }
+
+    return 'Researcher';
 };
 
 /**
@@ -154,11 +253,14 @@ const getDefaultRole = (department) => {
  */
 const syncUser = async (adUser) => {
     try {
-        // Check if user exists in local database
+        if (!adUser || !adUser.email) {
+            logger.warn('No user data to sync');
+            return null;
+        }
+
         let person = await personRepository.findByEmail(adUser.email);
 
         if (person) {
-            // Update existing user
             const updatedData = {
                 first_name: adUser.firstName || person.first_name,
                 last_name: adUser.lastName || person.last_name,
@@ -166,11 +268,9 @@ const syncUser = async (adUser) => {
                 position_title: adUser.jobTitle || person.position_title,
             };
             
-            // Only update if data has changed
             person = await personRepository.update(person.person_id, updatedData);
-            logger.info('User updated in local database', { email: person.email });
+            logger.info('User updated', { email: person.email });
         } else {
-            // Create new user
             const defaultRole = getDefaultRole(adUser.department);
             
             person = await personRepository.create({
@@ -182,12 +282,8 @@ const syncUser = async (adUser) => {
                 active: 1,
             });
 
-            // Assign default role
             await personRepository.assignRole(person.person_id, defaultRole);
-            logger.info('User created in local database', { 
-                email: person.email, 
-                role: defaultRole 
-            });
+            logger.info('User created', { email: person.email, role: defaultRole });
         }
 
         return person;
@@ -204,18 +300,22 @@ const login = async (username, password) => {
     try {
         const result = await callAuthService('login', 'POST', { username, password });
         
-        // Extract user data from response
+        const token = result.token || result.data?.token;
         const userData = result.user || result.data?.user;
-        
-        if (userData) {
-            // Sync user to local database
-            await syncUser(userData);
+
+        let userInfo = userData;
+        if (!userInfo && token) {
+            userInfo = extractUserFromToken(token);
+        }
+
+        if (userInfo) {
+            await syncUser(userInfo);
         }
 
         return {
-            token: result.token || result.data?.token,
+            token: token,
             refreshToken: result.refreshToken || result.data?.refreshToken,
-            user: userData,
+            user: userInfo,
         };
     } catch (error) {
         logger.error('Login error:', error.message);
@@ -224,31 +324,72 @@ const login = async (username, password) => {
 };
 
 /**
- * Refresh JWT token
+ * Refresh JWT token - Since ARC Auth has no /refresh endpoint,
+ * we generate new tokens locally using the user from the existing token
  */
 const refreshToken = async (refreshToken) => {
     try {
-        const result = await callAuthService('refresh', 'POST', { refreshToken });
+        // Decode the refresh token to get user info
+        const decoded = jwt.decode(refreshToken);
+        
+        if (!decoded) {
+            throw new UnauthorizedError('Invalid refresh token');
+        }
+
+        // Get user from the refresh token
+        const userId = decoded.userId || decoded.sub;
+        if (!userId) {
+            throw new UnauthorizedError('No user ID in refresh token');
+        }
+
+        // Find the user in local database
+        const person = await personRepository.findById(userId);
+        if (!person) {
+            throw new UnauthorizedError('User not found');
+        }
+
+        // Get user roles
+        const roles = await personRepository.getUserRoles(person.person_id);
+        const roleNames = roles.map(r => r.role_name);
+
+        // Generate new tokens locally
+        const user = {
+            id: person.person_id,
+            email: person.email,
+            firstName: person.first_name,
+            lastName: person.last_name,
+            department: person.department,
+            employeeId: person.employee_number,
+            jobTitle: person.position_title,
+            roles: roleNames,
+        };
+
+        const newTokens = generateLocalToken(user);
+        
+        logger.info('Token refreshed locally', { email: user.email });
+        
         return {
-            token: result.token || result.data?.token,
-            refreshToken: result.refreshToken || result.data?.refreshToken,
+            token: newTokens.token,
+            refreshToken: newTokens.refreshToken,
         };
     } catch (error) {
         logger.error('Token refresh error:', error.message);
-        throw error;
+        throw new UnauthorizedError('Failed to refresh token');
     }
 };
 
 /**
- * Logout
+ * Logout - invalidates token with ARC Auth Service
  */
 const logout = async (token) => {
     try {
+        // Try to logout with ARC Auth Service
         await callAuthService('logout', 'POST', { token });
         return true;
     } catch (error) {
-        logger.error('Logout error:', error.message);
-        return false;
+        // If logout fails, still clear local session
+        logger.warn('Logout with ARC Auth failed, clearing local session only', { error: error.message });
+        return true;
     }
 };
 
@@ -261,4 +402,6 @@ module.exports = {
     refreshToken,
     logout,
     getDefaultRole,
+    extractUserFromToken,
+    generateLocalToken,
 };

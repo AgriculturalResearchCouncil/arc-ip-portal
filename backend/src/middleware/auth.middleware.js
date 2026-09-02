@@ -1,10 +1,24 @@
+/**
+ * Authentication Middleware
+ * =========================
+ * Handles JWT token validation and user authentication.
+ * 
+ * Note: The ARC Auth Service does NOT have a /me endpoint.
+ * We extract user information from the JWT token directly.
+ * 
+ * @module middleware/auth.middleware
+ * @requires ../auth/auth.service
+ * @requires ../database/repositories/person.repository
+ * @requires ../errors/app-error
+ */
+
 const { UnauthorizedError, ForbiddenError } = require('../errors/app-error');
 const logger = require('../logging/logger');
 const { validateToken, syncUser } = require('../auth/auth.service');
 const personRepository = require('../database/repositories/person.repository');
 
 /**
- * Authentication middleware - validates JWT token with ARC Auth Service
+ * Authentication middleware - validates JWT token
  */
 const authenticate = async (req, res, next) => {
     try {
@@ -16,17 +30,21 @@ const authenticate = async (req, res, next) => {
             throw new UnauthorizedError('Authentication required. No token provided.');
         }
 
-        // Validate token with ARC Centralized Authentication Service
+        // Validate token (extracts user from token since no /me endpoint)
         const validationResult = await validateToken(token);
 
         if (!validationResult.valid) {
-            throw new UnauthorizedError('Invalid or expired token');
+            throw new UnauthorizedError(validationResult.reason || 'Invalid or expired token');
         }
 
-        // Synchronize user data
+        // Get user data from validation result
         const adUser = validationResult.user;
-        const syncedUser = await syncUser(adUser);
+        if (!adUser) {
+            throw new UnauthorizedError('No user data in token');
+        }
 
+        // Synchronize user data with local database
+        const syncedUser = await syncUser(adUser);
         if (!syncedUser) {
             throw new UnauthorizedError('User synchronization failed');
         }
@@ -62,7 +80,6 @@ const authenticate = async (req, res, next) => {
 
 /**
  * Role-based authorization middleware
- * @param {...string} allowedRoles - List of roles allowed to access the route
  */
 const authorize = (...allowedRoles) => {
     return (req, res, next) => {
@@ -106,8 +123,6 @@ const authorize = (...allowedRoles) => {
 
 /**
  * Record-level authorization middleware
- * @param {string} entityType - Type of entity (e.g., 'disclosure', 'ip_asset')
- * @param {string} idParam - Parameter name containing the record ID
  */
 const authorizeRecord = (entityType, idParam = 'id') => {
     return async (req, res, next) => {
@@ -118,18 +133,15 @@ const authorizeRecord = (entityType, idParam = 'id') => {
                 throw new UnauthorizedError('Authentication required');
             }
 
-            // System Administrator has all permissions
             if (user.role === 'System Administrator' || user.role === 'Admin') {
                 return next();
             }
 
             const recordId = req.params[idParam];
-
             if (!recordId) {
                 throw new BadRequestError('Record ID is required');
             }
 
-            // Check if user can access this specific record
             const hasAccess = await checkRecordAccess(user, entityType, recordId);
 
             if (!hasAccess) {
@@ -149,7 +161,6 @@ const authorizeRecord = (entityType, idParam = 'id') => {
 const checkRecordAccess = async (user, entityType, recordId) => {
     const { executeQuery, sql } = require('../database');
 
-    // For researchers: can only access their own records
     if (user.role === 'Researcher') {
         switch (entityType) {
             case 'disclosure':
@@ -168,7 +179,6 @@ const checkRecordAccess = async (user, entityType, recordId) => {
         }
     }
 
-    // TTO, Legal, Finance, Executive: can access all records
     const allowedRoles = ['TTO Officer', 'Legal Officer', 'Finance Officer', 'Executive'];
     return allowedRoles.some(role => user.roles?.includes(role));
 };
