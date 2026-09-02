@@ -253,6 +253,60 @@ class ReportRepository extends BaseRepository {
     }
 
     /**
+     * Gets Export Data for Reports.
+     * Exports report data in CSV or JSON format.
+     * 
+     * @async
+     * @param {string} reportType - Type of report to export
+     * @param {Object} [filters] - Filter options
+     * @param {string} [format='json'] - Export format ('json', 'csv')
+     * @returns {Promise<Array|string>} Export data
+     */
+    async getExportData(reportType, filters = {}, format = 'json') {
+        let data = [];
+
+        // Get the appropriate report data based on type
+        switch (reportType) {
+            case 'ip_portfolio':
+                data = await this.getIpPortfolioReport(filters);
+                break;
+            case 'disclosure':
+                data = await this.getDisclosureReport(filters);
+                break;
+            case 'patent':
+                data = await this.getPatentReport(filters);
+                break;
+            case 'licensing':
+                data = await this.getLicensingReport(filters);
+                break;
+            case 'commercialisation':
+                data = await this.getCommercialisationReport(filters);
+                break;
+            default:
+                throw new Error(`Invalid report type: ${reportType}`);
+        }
+
+        // If CSV format requested, convert to CSV
+        if (format === 'csv') {
+            if (data.length === 0) {
+                return '';
+            }
+            
+            // Get headers from first row
+            const headers = Object.keys(data[0]);
+            // Build CSV rows
+            const csvRows = [
+                headers.join(','), // Header row
+                ...data.map(row => headers.map(h => JSON.stringify(row[h] || '')).join(','))
+            ];
+            return csvRows.join('\n');
+        }
+
+        // Return JSON data
+        return data;
+    }
+
+    /**
      * Gets Patent Report.
      * Patent status, jurisdictions, renewals.
      * 

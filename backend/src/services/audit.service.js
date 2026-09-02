@@ -1,8 +1,11 @@
-// src/services/audit.service.js
 /**
  * Audit Service
  * =============
- * Business logic layer for audit logging.
+ * Business logic layer for audit logging and compliance.
+ * 
+ * Database Schema Notes:
+ * - audit_logs table has: audit_log_id (bigint, auto-increment), table_name, record_id,
+ *   action, old_values, new_values, changed_by, ip_address, user_agent, changed_at
  * 
  * @module services/audit.service
  * @requires ../database/repositories/audit.repository
@@ -44,6 +47,146 @@ class AuditService {
             logger.error('Error logging audit event:', error);
             throw error;
         }
+    }
+
+    /**
+     * Gets audit logs with filtering.
+     * 
+     * @async
+     * @param {Object} [filters] - Filter options
+     * @param {number} [filters.page] - Page number
+     * @param {number} [filters.limit] - Items per page
+     * @returns {Promise<Object>} Audit logs with pagination
+     */
+    async getAuditLogs(filters = {}) {
+        const page = parseInt(filters.page) || 1;
+        const limit = parseInt(filters.limit) || 50;
+        const offset = (page - 1) * limit;
+
+        const logs = await auditRepository.getAuditLogs({
+            ...filters,
+            limit,
+            offset
+        });
+
+        const countResult = await auditRepository.getAuditStatistics();
+        const total = countResult.total_events || logs.length;
+
+        return {
+            data: logs,
+            pagination: {
+                page,
+                limit,
+                total,
+                pages: Math.ceil(total / limit)
+            }
+        };
+    }
+
+    /**
+     * Gets audit logs for a specific entity.
+     * 
+     * @async
+     * @param {string} entityId - Entity UUID
+     * @param {string} entityType - Entity type
+     * @param {number} [limit=50] - Max results
+     * @returns {Promise<Array>} Audit logs
+     */
+    async getEntityAuditLogs(entityId, entityType, limit = 50) {
+        return await auditRepository.getEntityAuditLogs(entityId, entityType, limit);
+    }
+
+    /**
+     * Gets user activity.
+     * 
+     * @async
+     * @param {string} userId - User UUID
+     * @param {number} [days=30] - Days to look back
+     * @returns {Promise<Array>} User activity
+     */
+    async getUserActivity(userId, days = 30) {
+        return await auditRepository.getUserActivity(userId, days);
+    }
+
+    /**
+     * Gets security events.
+     * 
+     * @async
+     * @param {Object} [filters] - Filter options
+     * @param {string} [filters.userId] - User UUID
+     * @param {string} [filters.dateFrom] - From date
+     * @param {string} [filters.dateTo] - To date
+     * @param {number} [filters.limit=50] - Max results
+     * @returns {Promise<Array>} Security events
+     */
+    async getSecurityEvents(filters = {}) {
+        return await auditRepository.getSecurityEvents(filters);
+    }
+
+    /**
+     * Gets failed login attempts.
+     * 
+     * @async
+     * @param {string} [userId] - Optional user filter
+     * @param {number} [hours=24] - Hours to look back
+     * @returns {Promise<Array>} Failed login attempts
+     */
+    async getFailedLogins(userId = null, hours = 24) {
+        return await auditRepository.getFailedLogins(userId, hours);
+    }
+
+    /**
+     * Gets audit statistics.
+     * 
+     * @async
+     * @param {number} [days=30] - Days to look back
+     * @returns {Promise<Object>} Audit statistics
+     */
+    async getAuditStatistics(days = 30) {
+        return await auditRepository.getAuditStatistics(days);
+    }
+
+    /**
+     * Gets compliance report.
+     * 
+     * @async
+     * @param {string} periodStart - Period start
+     * @param {string} periodEnd - Period end
+     * @returns {Promise<Object>} Compliance report data
+     */
+    async getComplianceReport(periodStart, periodEnd) {
+        return await auditRepository.getComplianceReport(periodStart, periodEnd);
+    }
+
+    /**
+     * Gets audit log by ID.
+     * 
+     * @async
+     * @param {number} auditId - Audit log ID
+     * @returns {Promise<Object|null>} Audit log
+     */
+    async getAuditById(auditId) {
+        return await auditRepository.getAuditById(auditId);
+    }
+
+    /**
+     * Exports audit logs.
+     * 
+     * @async
+     * @param {Object} [filters] - Filter options
+     * @param {string} [format='csv'] - Export format
+     * @param {number} [limit=10000] - Max rows
+     * @returns {Promise<string>} Exported data
+     */
+    async exportAuditLogs(filters = {}, format = 'csv', limit = 10000) {
+        const data = await auditRepository.exportAuditLogs(filters, limit);
+        
+        if (format === 'csv') {
+            return data;
+        }
+
+        const logs = await auditRepository.getAuditLogs(filters);
+        return JSON.stringify(logs, null, 2);
     }
 
     /**
@@ -96,88 +239,6 @@ class AuditService {
     }
 
     /**
-     * Gets audit logs with filtering.
-     * 
-     * @async
-     * @param {Object} [filters] - Filter options
-     * @param {number} [filters.page] - Page number
-     * @param {number} [filters.limit] - Items per page
-     * @returns {Promise<Object>} Audit logs with pagination
-     */
-    async getAuditLogs(filters = {}) {
-        const page = parseInt(filters.page) || 1;
-        const limit = parseInt(filters.limit) || 50;
-        const offset = (page - 1) * limit;
-
-        const logs = await auditRepository.getAuditLogs({
-            ...filters,
-            limit,
-            offset
-        });
-
-        // Get total count for pagination
-        const countResult = await auditRepository.getAuditStatistics();
-        const total = countResult.total_events || logs.length;
-
-        return {
-            data: logs,
-            pagination: {
-                page,
-                limit,
-                total,
-                pages: Math.ceil(total / limit)
-            }
-        };
-    }
-
-    /**
-     * Gets audit logs for a specific record.
-     * 
-     * @async
-     * @param {string} tableName - Table name
-     * @param {string} recordId - Record ID
-     * @param {number} [limit=50] - Max results
-     * @returns {Promise<Array>} Audit logs
-     */
-    async getRecordAuditLogs(tableName, recordId, limit = 50) {
-        return await auditRepository.getRecordAuditLogs(tableName, recordId, limit);
-    }
-
-    /**
-     * Gets audit logs by user.
-     * 
-     * @async
-     * @param {string} userId - User UUID
-     * @param {number} [days=30] - Days to look back
-     * @returns {Promise<Array>} Audit logs
-     */
-    async getUserAuditLogs(userId, days = 30) {
-        return await auditRepository.getUserAuditLogs(userId, days);
-    }
-
-    /**
-     * Gets audit statistics.
-     * 
-     * @async
-     * @param {number} [days=30] - Days to look back
-     * @returns {Promise<Object>} Audit statistics
-     */
-    async getAuditStatistics(days = 30) {
-        return await auditRepository.getAuditStatistics(days);
-    }
-
-    /**
-     * Gets audit log by ID.
-     * 
-     * @async
-     * @param {number} auditId - Audit log ID
-     * @returns {Promise<Object|null>} Audit log
-     */
-    async getAuditById(auditId) {
-        return await auditRepository.getAuditById(auditId);
-    }
-
-    /**
      * Gets audit logs by table.
      * 
      * @async
@@ -211,27 +272,6 @@ class AuditService {
      */
     async getAuditSummaryByTable(days = 30) {
         return await auditRepository.getAuditSummaryByTable(days);
-    }
-
-    /**
-     * Exports audit logs.
-     * 
-     * @async
-     * @param {Object} [filters] - Filter options
-     * @param {string} [format='csv'] - Export format
-     * @param {number} [limit=10000] - Max rows
-     * @returns {Promise<string>} Exported data
-     */
-    async exportAuditLogs(filters = {}, format = 'csv', limit = 10000) {
-        const data = await auditRepository.exportAuditLogs(filters, limit);
-        
-        if (format === 'csv') {
-            return data;
-        }
-
-        // JSON format
-        const logs = await auditRepository.getAuditLogs(filters);
-        return JSON.stringify(logs, null, 2);
     }
 }
 
