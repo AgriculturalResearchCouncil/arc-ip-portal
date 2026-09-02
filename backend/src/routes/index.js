@@ -8,7 +8,7 @@
  * @requires express
  */
 
-// src/routes/index.js - Updated with report routes
+// src/routes/index.js - Add notification routes
 const express = require('express');
 const router = express.Router();
 
@@ -18,26 +18,19 @@ const userRoutes = require('./user.routes');
 const disclosureRoutes = require('./disclosure.routes');
 const ipAssetRoutes = require('./ip-asset.routes');
 const documentRoutes = require('./document.routes');
-
-// IP Type Routes
 const patentRoutes = require('./patent.routes');
 const pbrRoutes = require('./pbr.routes');
 const trademarkRoutes = require('./trademark.routes');
 const copyrightRoutes = require('./copyright.routes');
 const tradeSecretRoutes = require('./trade-secret.routes');
 const designRoutes = require('./design.routes');
-
-// Licensing Routes
 const licenceRoutes = require('./licence.routes');
-
-// Technology Evaluation Routes
 const evaluationRoutes = require('./evaluation.routes');
-
-// Commercialisation Routes
 const commercialisationRoutes = require('./commercialisation.routes');
-
-// Report Routes
 const reportRoutes = require('./report.routes');
+const workflowRoutes = require('./workflow.routes');
+const auditRoutes = require('./audit.routes');
+const notificationRoutes = require('./notification.routes');
 
 // API routes
 router.use('/auth', authRoutes);
@@ -45,28 +38,20 @@ router.use('/users', userRoutes);
 router.use('/disclosures', disclosureRoutes);
 router.use('/ip-assets', ipAssetRoutes);
 router.use('/documents', documentRoutes);
-
-// IP Type endpoints
 router.use('/patents', patentRoutes);
 router.use('/pbr', pbrRoutes);
 router.use('/trademarks', trademarkRoutes);
 router.use('/copyrights', copyrightRoutes);
 router.use('/trade-secrets', tradeSecretRoutes);
 router.use('/designs', designRoutes);
-
-// Licensing endpoints
 router.use('/licences', licenceRoutes);
-
-// Technology Evaluation endpoints
 router.use('/evaluations', evaluationRoutes);
-
-// Commercialisation endpoints
 router.use('/commercialisations', commercialisationRoutes);
-
-// Report endpoints
 router.use('/reports', reportRoutes);
+router.use('/workflows', workflowRoutes);
+router.use('/audit', auditRoutes);
+router.use('/notifications', notificationRoutes);
 
-// API info
 router.get('/', (req, res) => {
     res.json({
         name: 'ARC IP Portal API',
@@ -88,7 +73,10 @@ router.get('/', (req, res) => {
             licences: '/api/v1/licences',
             evaluations: '/api/v1/evaluations',
             commercialisations: '/api/v1/commercialisations',
-            reports: '/api/v1/reports'
+            reports: '/api/v1/reports',
+            workflows: '/api/v1/workflows',
+            audit: '/api/v1/audit',
+            notifications: '/api/v1/notifications'
         }
     });
 });
