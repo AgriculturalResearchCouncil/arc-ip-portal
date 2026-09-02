@@ -8,7 +8,7 @@
  * @requires express
  */
 
-// src/routes/index.js - Updated with evaluation routes
+// src/routes/index.js - Updated with commercialisation routes
 const express = require('express');
 const router = express.Router();
 
@@ -33,6 +33,9 @@ const licenceRoutes = require('./licence.routes');
 // Technology Evaluation Routes
 const evaluationRoutes = require('./evaluation.routes');
 
+// Commercialisation Routes
+const commercialisationRoutes = require('./commercialisation.routes');
+
 // API routes
 router.use('/auth', authRoutes);
 router.use('/users', userRoutes);
@@ -54,6 +57,9 @@ router.use('/licences', licenceRoutes);
 // Technology Evaluation endpoints
 router.use('/evaluations', evaluationRoutes);
 
+// Commercialisation endpoints
+router.use('/commercialisations', commercialisationRoutes);
+
 // API info
 router.get('/', (req, res) => {
     res.json({
@@ -74,7 +80,8 @@ router.get('/', (req, res) => {
             tradeSecrets: '/api/v1/trade-secrets',
             designs: '/api/v1/designs',
             licences: '/api/v1/licences',
-            evaluations: '/api/v1/evaluations'
+            evaluations: '/api/v1/evaluations',
+            commercialisations: '/api/v1/commercialisations'
         }
     });
 });
