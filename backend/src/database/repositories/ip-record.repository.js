@@ -1,9 +1,25 @@
+// src/database/repositories/ip-record.repository.js
 /**
  * IP Record Repository
  * ====================
- * Manages database operations for intellectual property records.
- * Handles all IP-related entities including disclosures, patents,
- * trademarks, copyrights, PBR, and trade secrets.
+ * Manages database operations for ip_records table.
+ * 
+ * Database Schema (ip_records):
+ * - ip_record_id (uniqueidentifier, PK)
+ * - reference_number (nvarchar, required)
+ * - record_type (nvarchar, required)
+ * - title (nvarchar, required)
+ * - description (nvarchar, nullable)
+ * - institute_id (uniqueidentifier, nullable, FK)
+ * - owner_id (uniqueidentifier, nullable, FK to persons)
+ * - status (nvarchar, nullable)
+ * - confidentiality_level (nvarchar, nullable)
+ * - migration_batch_id (uniqueidentifier, nullable)
+ * - legacy_reference (nvarchar, nullable)
+ * - migration_source (nvarchar, nullable)
+ * - created_by (uniqueidentifier, nullable, FK to persons)
+ * - created_at (datetime2, nullable)
+ * - updated_at (datetime2, nullable)
  * 
  * @module repositories/ip-record.repository
  * @requires ./base.repository
@@ -14,39 +30,11 @@ const BaseRepository = require('./base.repository');
 const { executeQuery, sql } = require('../index');
 const logger = require('../../logging/logger');
 
-/**
- * IpRecordRepository class for managing IP records.
- * Handles complex queries involving:
- * - Multiple IP types (disclosure, patent, trademark, etc.)
- * - Related persons (inventors, owners, contacts)
- * - Documents and attachments
- * - Status tracking and workflows
- * - IP lifecycle management
- * 
- * @class IpRecordRepository
- * @extends BaseRepository
- */
 class IpRecordRepository extends BaseRepository {
-    /**
-     * Creates an instance of IpRecordRepository.
-     * Initializes with the 'ip_records' table and 'ip_record_id' as primary key.
-     */
     constructor() {
         super('ip_records', 'ip_record_id');
     }
 
-    /**
-     * Finds an IP record with all related data.
-     * Includes owner details, related persons, documents, and specific IP type details.
-     * 
-     * @async
-     * @param {string} id - The IP record UUID
-     * @returns {Promise<Object|null>} Complete IP record object or null
-     * 
-     * @example
-     * const fullRecord = await ipRecordRepository.findFullRecord(ipRecordId);
-     * console.log(`Owner: ${fullRecord.owner_first_name} ${fullRecord.owner_last_name}`);
-     */
     async findFullRecord(id) {
         if (!id) {
             throw new Error('IP Record ID is required');
@@ -58,74 +46,20 @@ class IpRecordRepository extends BaseRepository {
                 p.first_name as owner_first_name,
                 p.last_name as owner_last_name,
                 p.email as owner_email,
-                p.employee_number as owner_employee_number,
-                i.name as owner_institute_name,
-                (
-                    SELECT 
-                        ipr.ip_record_person_id,
-                        ipr.person_id,
-                        ipr.role_type,
-                        ipr.contribution_percentage,
-                        pers.first_name,
-                        pers.last_name,
-                        pers.email,
-                        pers.employee_number,
-                        pers.position_title
-                    FROM ip_record_persons ipr
-                    JOIN persons pers ON ipr.person_id = pers.person_id
-                    WHERE ipr.ip_record_id = ir.ip_record_id
-                    AND ipr.is_active = 1
-                    FOR JSON PATH
-                ) as persons,
-                (
-                    SELECT 
-                        doc.document_id,
-                        doc.file_name,
-                        doc.document_type,
-                        doc.file_size,
-                        doc.uploaded_at,
-                        doc.is_confidential,
-                        doc.version_number
-                    FROM documents doc
-                    WHERE doc.ip_record_id = ir.ip_record_id
-                    AND doc.is_deleted = 0
-                    ORDER BY doc.version_number DESC
-                    FOR JSON PATH
-                ) as documents
+                i.institute_name as institute_name
             FROM ip_records ir
-            JOIN persons p ON ir.owner_id = p.person_id
-            LEFT JOIN institutes i ON p.institute_id = i.institute_id
-            WHERE ir.ip_record_id = @id AND ir.is_deleted = 0
+            LEFT JOIN persons p ON ir.owner_id = p.person_id
+            LEFT JOIN institutes i ON ir.institute_id = i.institute_id
+            WHERE ir.ip_record_id = @id
         `;
 
         const result = await executeQuery(query, [
             { name: 'id', type: sql.UniqueIdentifier, value: id }
         ]);
 
-        if (result.recordset.length === 0) {
-            return null;
-        }
-
-        const record = result.recordset[0];
-        
-        // Parse JSON fields
-        if (record.persons) {
-            record.persons = JSON.parse(record.persons);
-        }
-        if (record.documents) {
-            record.documents = JSON.parse(record.documents);
-        }
-
-        return record;
+        return result.recordset[0] || null;
     }
 
-    /**
-     * Finds IP records by owner (researcher).
-     * 
-     * @async
-     * @param {string} personId - The owner's UUID
-     * @returns {Promise<Array>} Array of IP records
-     */
     async findByOwner(personId) {
         if (!personId) {
             throw new Error('Person ID is required');
@@ -139,7 +73,7 @@ class IpRecordRepository extends BaseRepository {
                 d.review_status as disclosure_status
             FROM ip_records ir
             LEFT JOIN disclosures d ON d.ip_record_id = ir.ip_record_id
-            WHERE ir.owner_id = @personId AND ir.is_deleted = 0
+            WHERE ir.owner_id = @personId
             ORDER BY ir.created_at DESC
         `;
 
@@ -150,19 +84,6 @@ class IpRecordRepository extends BaseRepository {
         return result.recordset;
     }
 
-    /**
-     * Gets IP records by type with filters.
-     * 
-     * @async
-     * @param {string} recordType - Type of IP record (Disclosure, Patent, PBR, Trademark, Copyright)
-     * @param {Object} [filters={}] - Filter options
-     * @param {string} [filters.status] - Filter by status
-     * @param {string} [filters.dateFrom] - Filter by creation date from
-     * @param {string} [filters.dateTo] - Filter by creation date to
-     * @param {number} [filters.limit] - Limit results
-     * @param {number} [filters.offset] - Offset for pagination
-     * @returns {Promise<Array>} Array of IP records
-     */
     async findByType(recordType, filters = {}) {
         if (!recordType) {
             throw new Error('Record type is required');
@@ -175,8 +96,8 @@ class IpRecordRepository extends BaseRepository {
                 p.last_name as owner_last_name,
                 p.email as owner_email
             FROM ip_records ir
-            JOIN persons p ON ir.owner_id = p.person_id
-            WHERE ir.record_type = @recordType AND ir.is_deleted = 0
+            LEFT JOIN persons p ON ir.owner_id = p.person_id
+            WHERE ir.record_type = @recordType
         `;
 
         const params = [
@@ -209,12 +130,6 @@ class IpRecordRepository extends BaseRepository {
         return result.recordset;
     }
 
-    /**
-     * Gets IP record statistics for dashboard.
-     * 
-     * @async
-     * @returns {Promise<Object>} Statistics object
-     */
     async getStatistics() {
         const query = `
             SELECT 
@@ -231,21 +146,12 @@ class IpRecordRepository extends BaseRepository {
                 COUNT(CASE WHEN status = 'Rejected' THEN 1 END) as rejected,
                 COUNT(CASE WHEN status = 'Granted' THEN 1 END) as granted
             FROM ip_records
-            WHERE is_deleted = 0
         `;
 
         const result = await executeQuery(query);
         return result.recordset[0] || {};
     }
 
-    /**
-     * Searches IP records by reference number, title, or owner name.
-     * 
-     * @async
-     * @param {string} searchQuery - The search term
-     * @param {number} [limit=20] - Maximum results
-     * @returns {Promise<Array>} Array of matching IP records
-     */
     async search(searchQuery, limit = 20) {
         if (!searchQuery || searchQuery.length < 2) {
             return [];
@@ -262,9 +168,8 @@ class IpRecordRepository extends BaseRepository {
                 p.first_name as owner_first_name,
                 p.last_name as owner_last_name
             FROM ip_records ir
-            JOIN persons p ON ir.owner_id = p.person_id
-            WHERE ir.is_deleted = 0
-            AND (
+            LEFT JOIN persons p ON ir.owner_id = p.person_id
+            WHERE (
                 ir.reference_number LIKE @searchTerm
                 OR ir.title LIKE @searchTerm
                 OR p.first_name LIKE @searchTerm
@@ -283,15 +188,6 @@ class IpRecordRepository extends BaseRepository {
         return result.recordset;
     }
 
-    /**
-     * Updates the status of an IP record.
-     * 
-     * @async
-     * @param {string} ipRecordId - The IP record UUID
-     * @param {string} status - New status
-     * @param {string} updatedBy - Person ID of the user making the update
-     * @returns {Promise<Object>} Updated IP record
-     */
     async updateStatus(ipRecordId, status, updatedBy) {
         if (!ipRecordId || !status) {
             throw new Error('IP Record ID and status are required');
@@ -299,29 +195,19 @@ class IpRecordRepository extends BaseRepository {
 
         const query = `
             UPDATE ip_records
-            SET status = @status, 
-                updated_by = @updatedBy, 
+            SET status = @status,
                 updated_at = GETDATE()
             WHERE ip_record_id = @ipRecordId
         `;
 
         await executeQuery(query, [
             { name: 'ipRecordId', type: sql.UniqueIdentifier, value: ipRecordId },
-            { name: 'status', value: status },
-            { name: 'updatedBy', type: sql.UniqueIdentifier, value: updatedBy }
+            { name: 'status', value: status }
         ]);
 
-        logger.info('IP record status updated', { ipRecordId, status, updatedBy });
         return this.findById(ipRecordId);
     }
 
-    /**
-     * Gets IP records by institute.
-     * 
-     * @async
-     * @param {string} instituteId - The institute UUID
-     * @returns {Promise<Array>} Array of IP records
-     */
     async findByInstitute(instituteId) {
         if (!instituteId) {
             throw new Error('Institute ID is required');
@@ -333,8 +219,8 @@ class IpRecordRepository extends BaseRepository {
                 p.first_name as owner_first_name,
                 p.last_name as owner_last_name
             FROM ip_records ir
-            JOIN persons p ON ir.owner_id = p.person_id
-            WHERE p.institute_id = @instituteId AND ir.is_deleted = 0
+            LEFT JOIN persons p ON ir.owner_id = p.person_id
+            WHERE ir.institute_id = @instituteId
             ORDER BY ir.created_at DESC
         `;
 
@@ -345,13 +231,6 @@ class IpRecordRepository extends BaseRepository {
         return result.recordset;
     }
 
-    /**
-     * Gets pending records for review.
-     * 
-     * @async
-     * @param {string} recordType - Type of record to filter
-     * @returns {Promise<Array>} Array of pending records
-     */
     async getPendingRecords(recordType = null) {
         let query = `
             SELECT 
@@ -359,9 +238,8 @@ class IpRecordRepository extends BaseRepository {
                 p.first_name + ' ' + p.last_name as owner_name,
                 p.email as owner_email
             FROM ip_records ir
-            JOIN persons p ON ir.owner_id = p.person_id
+            LEFT JOIN persons p ON ir.owner_id = p.person_id
             WHERE ir.status IN ('Submitted', 'Under Review')
-            AND ir.is_deleted = 0
         `;
 
         const params = [];
