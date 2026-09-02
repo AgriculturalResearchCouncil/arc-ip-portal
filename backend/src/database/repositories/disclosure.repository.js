@@ -15,7 +15,8 @@
  * - created_at (datetime2, nullable)
  * - updated_at (datetime2, nullable)
  * 
- * Note: There is NO 'is_deleted' column in this table.
+ * Note: There is NO 'title' column in disclosures table.
+ * Titles come from ip_records.title.
  * 
  * @module repositories/disclosure.repository
  * @requires ./base.repository
@@ -234,6 +235,30 @@ class DisclosureRepository extends BaseRepository {
     }
 
     /**
+     * Gets category breakdown of disclosures.
+     * 
+     * @async
+     * @returns {Promise<Array>} Category breakdown
+     */
+    async getCategoryBreakdown() {
+        const query = `
+            SELECT 
+                disclosure_category,
+                COUNT(*) as count,
+                COUNT(CASE WHEN review_status = 'Approved' THEN 1 END) as approved_count,
+                COUNT(CASE WHEN review_status = 'Rejected' THEN 1 END) as rejected_count,
+                COUNT(CASE WHEN review_status IN ('Submitted', 'Under Review') THEN 1 END) as pending_count
+            FROM disclosures
+            WHERE disclosure_category IS NOT NULL
+            GROUP BY disclosure_category
+            ORDER BY count DESC
+        `;
+
+        const result = await executeQuery(query);
+        return result.recordset;
+    }
+
+    /**
      * Gets pending disclosures for TTO review.
      * 
      * @async
@@ -257,7 +282,8 @@ class DisclosureRepository extends BaseRepository {
     }
 
     /**
-     * Searches disclosures by title or reference number.
+     * Searches disclosures by reference number, researcher name, or title.
+     * Note: Title comes from ip_records, not disclosures.
      * 
      * @async
      * @param {string} searchQuery - Search term
@@ -273,12 +299,13 @@ class DisclosureRepository extends BaseRepository {
             SELECT 
                 d.*,
                 ir.reference_number,
+                ir.title,
                 p.first_name + ' ' + p.last_name as researcher_name
             FROM disclosures d
             JOIN ip_records ir ON d.ip_record_id = ir.ip_record_id
             LEFT JOIN persons p ON ir.owner_id = p.person_id
             WHERE (
-                d.title LIKE @searchTerm
+                ir.title LIKE @searchTerm
                 OR ir.reference_number LIKE @searchTerm
                 OR p.first_name LIKE @searchTerm
                 OR p.last_name LIKE @searchTerm
@@ -290,6 +317,36 @@ class DisclosureRepository extends BaseRepository {
 
         const result = await executeQuery(query, [
             { name: 'searchTerm', value: searchTerm }
+        ]);
+
+        return result.recordset;
+    }
+
+    /**
+     * Gets monthly disclosure trends.
+     * 
+     * @async
+     * @param {number} [months=12] - Number of months to look back
+     * @returns {Promise<Array>} Monthly trends
+     */
+    async getMonthlyTrends(months = 12) {
+        const query = `
+            SELECT 
+                YEAR(created_at) as year,
+                MONTH(created_at) as month,
+                DATENAME(month, created_at) as month_name,
+                COUNT(*) as total_submissions,
+                COUNT(CASE WHEN review_status = 'Approved' THEN 1 END) as approved,
+                COUNT(CASE WHEN review_status = 'Rejected' THEN 1 END) as rejected,
+                COUNT(CASE WHEN review_status IN ('Submitted', 'Under Review') THEN 1 END) as pending
+            FROM disclosures
+            WHERE created_at >= DATEADD(month, -@months, GETDATE())
+            GROUP BY YEAR(created_at), MONTH(created_at), DATENAME(month, created_at)
+            ORDER BY YEAR(created_at) DESC, MONTH(created_at) DESC
+        `;
+
+        const result = await executeQuery(query, [
+            { name: 'months', value: months }
         ]);
 
         return result.recordset;

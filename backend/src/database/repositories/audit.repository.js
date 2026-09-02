@@ -113,10 +113,84 @@ class AuditRepository extends BaseRepository {
     }
 
     /**
+     * Logs an INSERT event.
+     * 
+     * @async
+     * @param {string} tableName - Table name
+     * @param {string} recordId - Record ID
+     * @param {Object} newValues - New values
+     * @param {string} [changedBy] - User UUID
+     * @param {string} [ipAddress] - IP address
+     * @param {string} [userAgent] - User agent
+     * @returns {Promise<number>} Audit log ID
+     */
+    async logInsert(tableName, recordId, newValues, changedBy = null, ipAddress = null, userAgent = null) {
+        return await this.logEvent({
+            tableName,
+            recordId,
+            action: 'INSERT',
+            newValues,
+            changedBy,
+            ipAddress,
+            userAgent
+        });
+    }
+
+    /**
+     * Logs an UPDATE event.
+     * 
+     * @async
+     * @param {string} tableName - Table name
+     * @param {string} recordId - Record ID
+     * @param {Object} oldValues - Old values
+     * @param {Object} newValues - New values
+     * @param {string} [changedBy] - User UUID
+     * @param {string} [ipAddress] - IP address
+     * @param {string} [userAgent] - User agent
+     * @returns {Promise<number>} Audit log ID
+     */
+    async logUpdate(tableName, recordId, oldValues, newValues, changedBy = null, ipAddress = null, userAgent = null) {
+        return await this.logEvent({
+            tableName,
+            recordId,
+            action: 'UPDATE',
+            oldValues,
+            newValues,
+            changedBy,
+            ipAddress,
+            userAgent
+        });
+    }
+
+    /**
+     * Logs a DELETE event.
+     * 
+     * @async
+     * @param {string} tableName - Table name
+     * @param {string} recordId - Record ID
+     * @param {Object} oldValues - Old values
+     * @param {string} [changedBy] - User UUID
+     * @param {string} [ipAddress] - IP address
+     * @param {string} [userAgent] - User agent
+     * @returns {Promise<number>} Audit log ID
+     */
+    async logDelete(tableName, recordId, oldValues, changedBy = null, ipAddress = null, userAgent = null) {
+        return await this.logEvent({
+            tableName,
+            recordId,
+            action: 'DELETE',
+            oldValues,
+            changedBy,
+            ipAddress,
+            userAgent
+        });
+    }
+
+    /**
      * Gets audit logs with filtering.
      * 
      * @async
-     * @param {Object} [filters={}] - Filter options
+     * @param {Object} [filters] - Filter options
      * @param {string} [filters.tableName] - Table name
      * @param {string} [filters.recordId] - Record ID
      * @param {string} [filters.action] - Action type
@@ -247,6 +321,295 @@ class AuditRepository extends BaseRepository {
         ]);
 
         return result.recordset[0] || {};
+    }
+
+    /**
+     * Gets security events.
+     * Filters for security-related actions.
+     * 
+     * @async
+     * @param {Object} [filters] - Filter options
+     * @param {string} [filters.userId] - User UUID
+     * @param {string} [filters.dateFrom] - From date
+     * @param {string} [filters.dateTo] - To date
+     * @param {number} [filters.limit] - Limit results
+     * @returns {Promise<Array>} Security events
+     */
+    async getSecurityEvents(filters = {}) {
+        let query = `
+            SELECT 
+                al.*,
+                p.first_name + ' ' + p.last_name as changed_by_name,
+                p.email as changed_by_email
+            FROM audit_logs al
+            LEFT JOIN persons p ON al.changed_by = p.person_id
+            WHERE al.action IN ('USER_LOGIN_FAILED', 'UNAUTHORIZED_ACCESS', 'SECURITY_ALERT', 'USER_LOGOUT')
+        `;
+
+        const params = [];
+
+        if (filters.userId) {
+            query += ` AND al.changed_by = @userId`;
+            params.push({ name: 'userId', type: sql.UniqueIdentifier, value: filters.userId });
+        }
+
+        if (filters.dateFrom) {
+            query += ` AND al.changed_at >= @dateFrom`;
+            params.push({ name: 'dateFrom', value: filters.dateFrom });
+        }
+
+        if (filters.dateTo) {
+            query += ` AND al.changed_at <= @dateTo`;
+            params.push({ name: 'dateTo', value: filters.dateTo });
+        }
+
+        query += ` ORDER BY al.changed_at DESC`;
+
+        if (filters.limit) {
+            query += ` OFFSET 0 ROWS FETCH NEXT ${filters.limit} ROWS ONLY`;
+        }
+
+        const result = await executeQuery(query, params);
+        return result.recordset;
+    }
+
+    /**
+     * Gets failed login attempts.
+     * 
+     * @async
+     * @param {string} [userId] - Optional user filter
+     * @param {number} [hours=24] - Hours to look back
+     * @returns {Promise<Array>} Failed login attempts
+     */
+    async getFailedLogins(userId = null, hours = 24) {
+        let query = `
+            SELECT 
+                al.*,
+                p.first_name + ' ' + p.last_name as changed_by_name,
+                p.email as changed_by_email
+            FROM audit_logs al
+            LEFT JOIN persons p ON al.changed_by = p.person_id
+            WHERE al.action = 'USER_LOGIN_FAILED'
+            AND al.changed_at >= DATEADD(hour, -@hours, GETDATE())
+            ORDER BY al.changed_at DESC
+        `;
+
+        const params = [
+            { name: 'hours', value: hours }
+        ];
+
+        if (userId) {
+            query += ` AND al.changed_by = @userId`;
+            params.push({ name: 'userId', type: sql.UniqueIdentifier, value: userId });
+        }
+
+        const result = await executeQuery(query, params);
+        return result.recordset;
+    }
+
+    /**
+     * Gets compliance report data.
+     * 
+     * @async
+     * @param {string} periodStart - Period start
+     * @param {string} periodEnd - Period end
+     * @returns {Promise<Object>} Compliance report data
+     */
+    async getComplianceReport(periodStart, periodEnd) {
+        const query = `
+            SELECT 
+                COUNT(*) as total_audit_events,
+                COUNT(DISTINCT changed_by) as active_users,
+                COUNT(DISTINCT table_name) as entity_types,
+                COUNT(CASE WHEN action = 'INSERT' AND table_name = 'disclosures' THEN 1 END) as disclosures_created,
+                COUNT(CASE WHEN action = 'UPDATE' AND table_name = 'disclosures' AND new_values LIKE '%review_status%' THEN 1 END) as disclosures_reviewed,
+                COUNT(CASE WHEN action = 'INSERT' AND table_name = 'licence_records' THEN 1 END) as licences_created,
+                COUNT(CASE WHEN action = 'INSERT' AND table_name = 'ip_records' THEN 1 END) as ip_records_created,
+                COUNT(CASE WHEN action = 'USER_LOGIN_FAILED' THEN 1 END) as failed_logins,
+                COUNT(CASE WHEN action = 'UNAUTHORIZED_ACCESS' THEN 1 END) as unauthorized_attempts,
+                COUNT(CASE WHEN action = 'USER_LOGIN' THEN 1 END) as successful_logins
+            FROM audit_logs
+            WHERE changed_at >= @periodStart AND changed_at <= @periodEnd
+        `;
+
+        const result = await executeQuery(query, [
+            { name: 'periodStart', value: periodStart },
+            { name: 'periodEnd', value: periodEnd }
+        ]);
+
+        return result.recordset[0] || {};
+    }
+
+    /**
+     * Gets audit log by ID.
+     * 
+     * @async
+     * @param {number} auditId - Audit log ID
+     * @returns {Promise<Object|null>} Audit log
+     */
+    async getAuditById(auditId) {
+        if (!auditId) {
+            throw new Error('Audit ID is required');
+        }
+
+        const query = `
+            SELECT 
+                al.*,
+                p.first_name + ' ' + p.last_name as changed_by_name,
+                p.email as changed_by_email
+            FROM audit_logs al
+            LEFT JOIN persons p ON al.changed_by = p.person_id
+            WHERE al.audit_log_id = @auditId
+        `;
+
+        const result = await executeQuery(query, [
+            { name: 'auditId', value: auditId }
+        ]);
+
+        return result.recordset[0] || null;
+    }
+
+    /**
+     * Gets audit logs by table.
+     * 
+     * @async
+     * @param {string} tableName - Table name
+     * @param {number} [limit=100] - Max results
+     * @returns {Promise<Array>} Audit logs
+     */
+    async getTableAuditLogs(tableName, limit = 100) {
+        if (!tableName) {
+            throw new Error('Table name is required');
+        }
+
+        const query = `
+            SELECT 
+                al.*,
+                p.first_name + ' ' + p.last_name as changed_by_name
+            FROM audit_logs al
+            LEFT JOIN persons p ON al.changed_by = p.person_id
+            WHERE al.table_name = @tableName
+            ORDER BY al.changed_at DESC
+            OFFSET 0 ROWS FETCH NEXT @limit ROWS ONLY
+        `;
+
+        const result = await executeQuery(query, [
+            { name: 'tableName', value: tableName },
+            { name: 'limit', value: limit }
+        ]);
+
+        return result.recordset;
+    }
+
+    /**
+     * Gets audit logs by date range.
+     * 
+     * @async
+     * @param {string} dateFrom - From date
+     * @param {string} dateTo - To date
+     * @param {number} [limit] - Max results
+     * @returns {Promise<Array>} Audit logs
+     */
+    async getAuditLogsByDateRange(dateFrom, dateTo, limit = null) {
+        if (!dateFrom || !dateTo) {
+            throw new Error('Date from and date to are required');
+        }
+
+        let query = `
+            SELECT 
+                al.*,
+                p.first_name + ' ' + p.last_name as changed_by_name
+            FROM audit_logs al
+            LEFT JOIN persons p ON al.changed_by = p.person_id
+            WHERE al.changed_at >= @dateFrom AND al.changed_at <= @dateTo
+            ORDER BY al.changed_at DESC
+        `;
+
+        const params = [
+            { name: 'dateFrom', value: dateFrom },
+            { name: 'dateTo', value: dateTo }
+        ];
+
+        if (limit) {
+            query += ` OFFSET 0 ROWS FETCH NEXT @limit ROWS ONLY`;
+            params.push({ name: 'limit', value: limit });
+        }
+
+        const result = await executeQuery(query, params);
+        return result.recordset;
+    }
+
+    /**
+     * Gets audit summary by table.
+     * 
+     * @async
+     * @param {number} [days=30] - Days to look back
+     * @returns {Promise<Array>} Summary by table
+     */
+    async getAuditSummaryByTable(days = 30) {
+        const query = `
+            SELECT 
+                table_name,
+                COUNT(*) as total_changes,
+                COUNT(CASE WHEN action = 'INSERT' THEN 1 END) as inserts,
+                COUNT(CASE WHEN action = 'UPDATE' THEN 1 END) as updates,
+                COUNT(CASE WHEN action = 'DELETE' THEN 1 END) as deletes,
+                COUNT(DISTINCT changed_by) as unique_users
+            FROM audit_logs
+            WHERE changed_at >= DATEADD(day, -@days, GETDATE())
+            GROUP BY table_name
+            ORDER BY total_changes DESC
+        `;
+
+        const result = await executeQuery(query, [
+            { name: 'days', value: days }
+        ]);
+
+        return result.recordset;
+    }
+
+    /**
+     * Exports audit logs to CSV.
+     * 
+     * @async
+     * @param {Object} [filters] - Filter options
+     * @param {number} [limit=10000] - Max rows
+     * @returns {Promise<string>} CSV data
+     */
+    async exportAuditLogs(filters = {}, limit = 10000) {
+        const logs = await this.getAuditLogs({
+            ...filters,
+            limit
+        });
+
+        if (logs.length === 0) {
+            return '';
+        }
+
+        const headers = [
+            'Audit ID', 'Table Name', 'Record ID', 'Action',
+            'Old Values', 'New Values', 'Changed By', 'Changed By Name',
+            'IP Address', 'User Agent', 'Changed At'
+        ];
+
+        const rows = logs.map(log => [
+            log.audit_log_id,
+            log.table_name,
+            log.record_id,
+            log.action,
+            log.old_values || '',
+            log.new_values || '',
+            log.changed_by || '',
+            log.changed_by_name || '',
+            log.ip_address || '',
+            log.user_agent || '',
+            log.changed_at
+        ]);
+
+        return [
+            headers.join(','),
+            ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+        ].join('\n');
     }
 }
 
