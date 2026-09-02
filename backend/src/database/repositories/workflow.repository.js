@@ -3,33 +3,13 @@
  * ===================
  * Manages database operations for workflow tables.
  * 
- * Database Schema (workflow_definitions):
- * - workflow_definition_id (uniqueidentifier, PK)
- * - workflow_name (nvarchar, required)
- * - record_type (nvarchar, required) - 'disclosure', 'licence', 'evaluation'
- * - sequence_no (int, required)
- * - task_name (nvarchar, required)
- * - assigned_role (nvarchar, nullable)
- * - mandatory (bit, nullable)
- * - description (nvarchar, nullable)
- * - created_at (datetime2, nullable)
- * - updated_at (datetime2, nullable)
- * 
- * Database Schema (workflow_tasks):
- * - workflow_task_id (uniqueidentifier, PK)
- * - ip_record_id (uniqueidentifier, nullable, FK to ip_records)
- * - task_name (nvarchar, required)
- * - task_type (nvarchar, nullable)
- * - assigned_to (uniqueidentifier, nullable, FK to persons)
- * - due_date (date, nullable)
- * - completed_date (date, nullable)
- * - task_status (nvarchar, nullable) - 'Pending', 'In Progress', 'Completed', 'Cancelled', 'Overdue'
- * - priority (nvarchar, nullable) - 'Low', 'Normal', 'High', 'Urgent'
- * - comments (nvarchar, nullable)
- * - created_at (datetime2, nullable)
- * - updated_at (datetime2, nullable)
- * 
- * Note: There is NO 'is_deleted' column in these tables.
+ * Database Schema Notes:
+ * - NO 'is_deleted' column in any workflow table
+ * - workflow_definitions: workflow_definition_id, workflow_name, record_type, 
+ *   sequence_no, task_name, assigned_role, mandatory, description, created_at, updated_at
+ * - workflow_tasks: workflow_task_id, ip_record_id, task_name, task_type, 
+ *   assigned_to, due_date, completed_date, task_status, priority, comments, 
+ *   created_at, updated_at
  * 
  * @module repositories/workflow.repository
  * @requires ./base.repository
@@ -349,6 +329,31 @@ class WorkflowRepository extends BaseRepository {
             { name: 'userId', type: sql.UniqueIdentifier, value: userId }
         ]);
 
+        return result.recordset[0] || {};
+    }
+
+    /**
+     * Gets workflow statistics.
+     * Provides counts of tasks by status.
+     * 
+     * @async
+     * @returns {Promise<Object>} Workflow statistics
+     */
+    async getStatistics() {
+        const query = `
+            SELECT 
+                COUNT(CASE WHEN task_status = 'Pending' THEN 1 END) as pending_tasks,
+                COUNT(CASE WHEN task_status = 'In Progress' THEN 1 END) as in_progress_tasks,
+                COUNT(CASE WHEN task_status = 'Completed' THEN 1 END) as completed_tasks,
+                COUNT(CASE WHEN task_status = 'Overdue' THEN 1 END) as overdue_tasks,
+                COUNT(CASE WHEN task_status = 'Cancelled' THEN 1 END) as cancelled_tasks,
+                COUNT(*) as total_tasks,
+                COUNT(DISTINCT ip_record_id) as ip_records_with_tasks,
+                COUNT(DISTINCT assigned_to) as users_with_tasks
+            FROM workflow_tasks
+        `;
+
+        const result = await executeQuery(query);
         return result.recordset[0] || {};
     }
 }

@@ -1,4 +1,3 @@
-// src/database/repositories/report.repository.js
 /**
  * Report Repository
  * =================
@@ -11,6 +10,7 @@
  * - NO 'submitted_at' column in disclosures (use created_at)
  * - NO 'patent_jurisdictions' table
  * - Use 'institute_name' not 'name' from institutes table
+ * - Disclosures table does NOT have 'title' column (use ip_records.title)
  * 
  * @module repositories/report.repository
  * @requires ./base.repository
@@ -188,6 +188,9 @@ class ReportRepository extends BaseRepository {
      * Gets Disclosure Report.
      * Disclosures by status, category, researcher.
      * 
+     * Note: The disclosures table does NOT have a 'title' column.
+     * The title comes from the ip_records table.
+     * 
      * @async
      * @param {Object} [filters] - Filter options
      * @param {string} [filters.status] - Review status
@@ -201,7 +204,7 @@ class ReportRepository extends BaseRepository {
         let query = `
             SELECT 
                 d.disclosure_id,
-                d.title,
+                ir.title,
                 d.disclosure_category,
                 d.review_status,
                 d.disclosure_date,

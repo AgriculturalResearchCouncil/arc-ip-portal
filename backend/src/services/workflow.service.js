@@ -1,15 +1,7 @@
-// src/services/workflow.service.js
 /**
- * Workflow Engine Service
- * ======================
+ * Workflow Service
+ * ================
  * Business logic layer for workflow management.
- * Handles:
- * - Workflow task creation
- * - Task assignment
- * - Task status management
- * - Task completion
- * - Task notifications
- * - Workflow monitoring
  * 
  * @module services/workflow.service
  * @requires ../database/repositories/workflow.repository
@@ -51,7 +43,7 @@ class WorkflowService {
             }
 
             // Get workflow template
-            const template = await workflowRepository.getWorkflowTemplate(recordType);
+            const template = await workflowRepository.getWorkflowDefinitionsByType(recordType);
             if (!template || template.length === 0) {
                 throw new NotFoundError('No workflow template found for record type', { recordType });
             }
@@ -120,7 +112,9 @@ class WorkflowService {
      */
     async getUserTasks(userId, status = null) {
         if (status) {
-            return await workflowRepository.getTasksByStatus(status);
+            // If status filter provided, get tasks by status from repository
+            const allTasks = await workflowRepository.getTasksByIpRecord(userId);
+            return allTasks.filter(task => task.task_status === status);
         }
         return await workflowRepository.getPendingTasksByUser(userId);
     }
@@ -192,6 +186,7 @@ class WorkflowService {
             throw new NotFoundError('User not found', { assignedTo });
         }
 
+        // Update assignment
         const updated = await workflowRepository.updateTaskAssignment(taskId, assignedTo, updatedBy);
 
         logger.logAudit('TASK_ASSIGNED', updatedBy, {
@@ -266,20 +261,7 @@ class WorkflowService {
      * @returns {Promise<Array>} Workflow template
      */
     async getWorkflowTemplate(recordType) {
-        return await workflowRepository.getWorkflowTemplate(recordType);
-    }
-
-    /**
-     * Creates a workflow template.
-     * 
-     * @async
-     * @param {string} recordType - Record type
-     * @param {Array} definitions - Array of definition objects
-     * @param {string} createdBy - User UUID
-     * @returns {Promise<Array>} Created definition IDs
-     */
-    async createWorkflowTemplate(recordType, definitions, createdBy) {
-        return await workflowRepository.createWorkflowTemplate(recordType, definitions, createdBy);
+        return await workflowRepository.getWorkflowDefinitionsByType(recordType);
     }
 
     /**
@@ -305,28 +287,6 @@ class WorkflowService {
         logger.logAudit('TASK_DELETED', updatedBy, { taskId });
 
         return result;
-    }
-
-    /**
-     * Gets tasks by status.
-     * 
-     * @async
-     * @param {string} status - Task status
-     * @returns {Promise<Array>} Array of tasks
-     */
-    async getTasksByStatus(status) {
-        return await workflowRepository.getTasksByStatus(status);
-    }
-
-    /**
-     * Gets tasks by priority.
-     * 
-     * @async
-     * @param {string} priority - Priority level
-     * @returns {Promise<Array>} Array of tasks
-     */
-    async getTasksByPriority(priority) {
-        return await workflowRepository.getTasksByPriority(priority);
     }
 }
 

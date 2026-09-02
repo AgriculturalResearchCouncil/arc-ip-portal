@@ -1,4 +1,3 @@
-// src/services/ip-asset.service.js
 /**
  * IP Asset Service
  * ================
@@ -9,6 +8,7 @@
  * - Columns: ip_record_id, reference_number, record_type, title, description,
  *   institute_id, owner_id, status, confidentiality_level, created_by,
  *   created_at, updated_at
+ * - Use institute_name from institutes table
  * 
  * @module services/ip-asset.service
  * @requires ../database/repositories/ip-record.repository
@@ -37,6 +37,7 @@ class IpAssetService {
      * @returns {Promise<Array>} Array of IP assets
      */
     async getIpAssets(filters = {}, userId = null, userRole = null) {
+        // If researcher, only show their own
         if (userRole === 'Researcher' && userId) {
             return await ipRecordRepository.findByOwner(userId);
         }
