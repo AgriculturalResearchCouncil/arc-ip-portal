@@ -1,4 +1,3 @@
-// src/database/repositories/licence.repository.js
 /**
  * Licence Repository
  * ==================
@@ -6,33 +5,49 @@
  * 
  * Database Schema (licence_records):
  * - licence_id (uniqueidentifier, PK)
- * - ip_record_id (uniqueidentifier, FK)
+ * - ip_record_id (uniqueidentifier, FK to ip_records)
  * - licence_number (nvarchar, nullable)
  * - licensee_name (nvarchar, required)
  * - territory (nvarchar, nullable)
- * - exclusivity (nvarchar, nullable)
+ * - exclusivity (nvarchar, nullable) - 'Exclusive', 'Non-Exclusive', 'Sublicensable'
  * - start_date (date, required)
  * - end_date (date, nullable)
  * - royalty_percentage (decimal, nullable)
  * - annual_fee (decimal, nullable)
- * - status (nvarchar, nullable)
+ * - status (nvarchar, nullable) - 'Draft', 'Active', 'Expired', 'Terminated'
  * - created_at (datetime2, nullable)
  * - updated_at (datetime2, nullable)
+ * 
+ * Note: There is NO 'is_deleted' column in this table.
  * 
  * @module repositories/licence.repository
  * @requires ./base.repository
  * @requires ../index
+ * @requires ../../logging/logger
  */
 
 const BaseRepository = require('./base.repository');
 const { executeQuery, sql } = require('../index');
 const logger = require('../../logging/logger');
 
+/**
+ * LicenceRepository class for managing licences.
+ * 
+ * @class LicenceRepository
+ * @extends BaseRepository
+ */
 class LicenceRepository extends BaseRepository {
     constructor() {
         super('licence_records', 'licence_id');
     }
 
+    /**
+     * Finds a complete licence with all related data.
+     * 
+     * @async
+     * @param {string} id - Licence UUID
+     * @returns {Promise<Object|null>} Complete licence object
+     */
     async findFullLicence(id) {
         if (!id) {
             throw new Error('Licence ID is required');
@@ -59,6 +74,13 @@ class LicenceRepository extends BaseRepository {
         return result.recordset[0] || null;
     }
 
+    /**
+     * Finds licences by IP record.
+     * 
+     * @async
+     * @param {string} ipRecordId - IP record UUID
+     * @returns {Promise<Array>} Array of licences
+     */
     async findByIpRecord(ipRecordId) {
         if (!ipRecordId) {
             throw new Error('IP Record ID is required');
@@ -82,6 +104,13 @@ class LicenceRepository extends BaseRepository {
         return result.recordset;
     }
 
+    /**
+     * Gets licences expiring soon.
+     * 
+     * @async
+     * @param {number} [daysThreshold=90] - Days threshold for expiry alerts
+     * @returns {Promise<Array>} Array of licences expiring soon
+     */
     async getExpiringSoon(daysThreshold = 90) {
         const query = `
             SELECT 
@@ -108,6 +137,12 @@ class LicenceRepository extends BaseRepository {
         return result.recordset;
     }
 
+    /**
+     * Gets licence statistics.
+     * 
+     * @async
+     * @returns {Promise<Object>} Statistics object
+     */
     async getStatistics() {
         const query = `
             SELECT 
@@ -125,6 +160,15 @@ class LicenceRepository extends BaseRepository {
         return result.recordset[0] || {};
     }
 
+    /**
+     * Updates licence status.
+     * 
+     * @async
+     * @param {string} licenceId - Licence UUID
+     * @param {string} status - New status
+     * @param {string} updatedBy - User UUID
+     * @returns {Promise<Object>} Updated licence
+     */
     async updateStatus(licenceId, status, updatedBy) {
         if (!licenceId || !status) {
             throw new Error('Licence ID and status are required');
@@ -146,6 +190,14 @@ class LicenceRepository extends BaseRepository {
         return this.findById(licenceId);
     }
 
+    /**
+     * Searches licences by keyword.
+     * 
+     * @async
+     * @param {string} searchQuery - Search term
+     * @param {number} [limit=20] - Max results
+     * @returns {Promise<Array>} Array of matching licences
+     */
     async search(searchQuery, limit = 20) {
         if (!searchQuery || searchQuery.length < 2) {
             return [];

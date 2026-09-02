@@ -1,4 +1,3 @@
-// src/database/repositories/ip-record.repository.js
 /**
  * IP Record Repository
  * ====================
@@ -7,10 +6,10 @@
  * Database Schema (ip_records):
  * - ip_record_id (uniqueidentifier, PK)
  * - reference_number (nvarchar, required)
- * - record_type (nvarchar, required)
+ * - record_type (nvarchar, required) - 'Disclosure', 'Patent', 'PBR', 'Trademark', 'Copyright', 'TradeSecret'
  * - title (nvarchar, required)
  * - description (nvarchar, nullable)
- * - institute_id (uniqueidentifier, nullable, FK)
+ * - institute_id (uniqueidentifier, nullable, FK to institutes)
  * - owner_id (uniqueidentifier, nullable, FK to persons)
  * - status (nvarchar, nullable)
  * - confidentiality_level (nvarchar, nullable)
@@ -21,20 +20,36 @@
  * - created_at (datetime2, nullable)
  * - updated_at (datetime2, nullable)
  * 
+ * Note: There is NO 'is_deleted' column in this table.
+ * 
  * @module repositories/ip-record.repository
  * @requires ./base.repository
  * @requires ../index
+ * @requires ../../logging/logger
  */
 
 const BaseRepository = require('./base.repository');
 const { executeQuery, sql } = require('../index');
 const logger = require('../../logging/logger');
 
+/**
+ * IpRecordRepository class for managing IP records.
+ * 
+ * @class IpRecordRepository
+ * @extends BaseRepository
+ */
 class IpRecordRepository extends BaseRepository {
     constructor() {
         super('ip_records', 'ip_record_id');
     }
 
+    /**
+     * Finds a complete IP record with owner and institute details.
+     * 
+     * @async
+     * @param {string} id - IP record UUID
+     * @returns {Promise<Object|null>} Complete IP record object
+     */
     async findFullRecord(id) {
         if (!id) {
             throw new Error('IP Record ID is required');
@@ -60,6 +75,13 @@ class IpRecordRepository extends BaseRepository {
         return result.recordset[0] || null;
     }
 
+    /**
+     * Finds IP records owned by a specific person.
+     * 
+     * @async
+     * @param {string} personId - Owner UUID
+     * @returns {Promise<Array>} Array of IP records
+     */
     async findByOwner(personId) {
         if (!personId) {
             throw new Error('Person ID is required');
@@ -84,6 +106,19 @@ class IpRecordRepository extends BaseRepository {
         return result.recordset;
     }
 
+    /**
+     * Finds IP records by type with optional filtering.
+     * 
+     * @async
+     * @param {string} recordType - Type of IP record
+     * @param {Object} [filters={}] - Filter options
+     * @param {string} [filters.status] - Filter by status
+     * @param {string} [filters.dateFrom] - Filter by creation date from
+     * @param {string} [filters.dateTo] - Filter by creation date to
+     * @param {number} [filters.limit] - Limit results
+     * @param {number} [filters.offset] - Offset for pagination
+     * @returns {Promise<Array>} Array of IP records
+     */
     async findByType(recordType, filters = {}) {
         if (!recordType) {
             throw new Error('Record type is required');
@@ -130,6 +165,12 @@ class IpRecordRepository extends BaseRepository {
         return result.recordset;
     }
 
+    /**
+     * Gets IP record statistics.
+     * 
+     * @async
+     * @returns {Promise<Object>} Statistics object
+     */
     async getStatistics() {
         const query = `
             SELECT 
@@ -152,6 +193,14 @@ class IpRecordRepository extends BaseRepository {
         return result.recordset[0] || {};
     }
 
+    /**
+     * Searches IP records by reference number, title, or owner name.
+     * 
+     * @async
+     * @param {string} searchQuery - The search term
+     * @param {number} [limit=20] - Maximum results
+     * @returns {Promise<Array>} Array of matching IP records
+     */
     async search(searchQuery, limit = 20) {
         if (!searchQuery || searchQuery.length < 2) {
             return [];
@@ -188,6 +237,15 @@ class IpRecordRepository extends BaseRepository {
         return result.recordset;
     }
 
+    /**
+     * Updates the status of an IP record.
+     * 
+     * @async
+     * @param {string} ipRecordId - IP record UUID
+     * @param {string} status - New status
+     * @param {string} updatedBy - Person ID of the user making the update
+     * @returns {Promise<Object>} Updated IP record
+     */
     async updateStatus(ipRecordId, status, updatedBy) {
         if (!ipRecordId || !status) {
             throw new Error('IP Record ID and status are required');
@@ -205,9 +263,17 @@ class IpRecordRepository extends BaseRepository {
             { name: 'status', value: status }
         ]);
 
+        logger.info('IP record status updated', { ipRecordId, status, updatedBy });
         return this.findById(ipRecordId);
     }
 
+    /**
+     * Gets IP records by institute.
+     * 
+     * @async
+     * @param {string} instituteId - Institute UUID
+     * @returns {Promise<Array>} Array of IP records
+     */
     async findByInstitute(instituteId) {
         if (!instituteId) {
             throw new Error('Institute ID is required');
@@ -231,6 +297,13 @@ class IpRecordRepository extends BaseRepository {
         return result.recordset;
     }
 
+    /**
+     * Gets pending records for review.
+     * 
+     * @async
+     * @param {string} [recordType] - Optional record type filter
+     * @returns {Promise<Array>} Array of pending records
+     */
     async getPendingRecords(recordType = null) {
         let query = `
             SELECT 

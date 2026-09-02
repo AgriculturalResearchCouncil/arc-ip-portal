@@ -1,14 +1,12 @@
-// src/database/repositories/workflow.repository.js
 /**
  * Workflow Repository
  * ===================
  * Manages database operations for workflow tables.
  * 
- * Database Schema:
- * workflow_definitions:
+ * Database Schema (workflow_definitions):
  * - workflow_definition_id (uniqueidentifier, PK)
  * - workflow_name (nvarchar, required)
- * - record_type (nvarchar, required)
+ * - record_type (nvarchar, required) - 'disclosure', 'licence', 'evaluation'
  * - sequence_no (int, required)
  * - task_name (nvarchar, required)
  * - assigned_role (nvarchar, nullable)
@@ -17,29 +15,38 @@
  * - created_at (datetime2, nullable)
  * - updated_at (datetime2, nullable)
  * 
- * workflow_tasks:
+ * Database Schema (workflow_tasks):
  * - workflow_task_id (uniqueidentifier, PK)
- * - ip_record_id (uniqueidentifier, nullable, FK)
+ * - ip_record_id (uniqueidentifier, nullable, FK to ip_records)
  * - task_name (nvarchar, required)
  * - task_type (nvarchar, nullable)
  * - assigned_to (uniqueidentifier, nullable, FK to persons)
  * - due_date (date, nullable)
  * - completed_date (date, nullable)
- * - task_status (nvarchar, nullable)
- * - priority (nvarchar, nullable)
+ * - task_status (nvarchar, nullable) - 'Pending', 'In Progress', 'Completed', 'Cancelled', 'Overdue'
+ * - priority (nvarchar, nullable) - 'Low', 'Normal', 'High', 'Urgent'
  * - comments (nvarchar, nullable)
  * - created_at (datetime2, nullable)
  * - updated_at (datetime2, nullable)
  * 
+ * Note: There is NO 'is_deleted' column in these tables.
+ * 
  * @module repositories/workflow.repository
  * @requires ./base.repository
  * @requires ../index
+ * @requires ../../logging/logger
  */
 
 const BaseRepository = require('./base.repository');
 const { executeQuery, sql } = require('../index');
 const logger = require('../../logging/logger');
 
+/**
+ * WorkflowRepository class for managing workflows.
+ * 
+ * @class WorkflowRepository
+ * @extends BaseRepository
+ */
 class WorkflowRepository extends BaseRepository {
     constructor() {
         super('workflow_definitions', 'workflow_definition_id');
@@ -49,6 +56,13 @@ class WorkflowRepository extends BaseRepository {
     // WORKFLOW DEFINITIONS
     // ============================================================
 
+    /**
+     * Gets workflow definitions by record type.
+     * 
+     * @async
+     * @param {string} recordType - Record type ('disclosure', 'licence', 'evaluation')
+     * @returns {Promise<Array>} Array of workflow definitions
+     */
     async getWorkflowDefinitionsByType(recordType) {
         if (!recordType) {
             throw new Error('Record type is required');
@@ -67,6 +81,16 @@ class WorkflowRepository extends BaseRepository {
         return result.recordset;
     }
 
+    /**
+     * Creates workflow tasks from definitions for a record.
+     * 
+     * @async
+     * @param {string} ipRecordId - IP record UUID
+     * @param {string} recordType - Record type
+     * @param {string} [assignedTo] - User to assign tasks to
+     * @param {string} [dueDate] - Due date for tasks
+     * @returns {Promise<Array>} Array of created task IDs
+     */
     async createTasksFromDefinitions(ipRecordId, recordType, assignedTo = null, dueDate = null) {
         if (!ipRecordId || !recordType) {
             throw new Error('IP Record ID and record type are required');
@@ -105,10 +129,10 @@ class WorkflowRepository extends BaseRepository {
                 { name: 'taskId', type: sql.UniqueIdentifier, value: taskId },
                 { name: 'ipRecordId', type: sql.UniqueIdentifier, value: ipRecordId },
                 { name: 'taskName', value: def.task_name },
-                { name: 'taskType', value: def.task_type || 'Task' },
+                { name: 'taskType', value: 'Task' },
                 { name: 'assignedTo', type: sql.UniqueIdentifier, value: assignedTo || null },
                 { name: 'dueDate', value: dueDate || null },
-                { name: 'priority', value: def.priority || 'Normal' }
+                { name: 'priority', value: 'Normal' }
             ]);
 
             taskIds.push(taskId);
@@ -127,6 +151,13 @@ class WorkflowRepository extends BaseRepository {
     // WORKFLOW TASKS
     // ============================================================
 
+    /**
+     * Gets tasks by IP record.
+     * 
+     * @async
+     * @param {string} ipRecordId - IP record UUID
+     * @returns {Promise<Array>} Array of tasks
+     */
     async getTasksByIpRecord(ipRecordId) {
         if (!ipRecordId) {
             throw new Error('IP Record ID is required');
@@ -152,6 +183,13 @@ class WorkflowRepository extends BaseRepository {
         return result.recordset;
     }
 
+    /**
+     * Gets a task by ID.
+     * 
+     * @async
+     * @param {string} taskId - Task UUID
+     * @returns {Promise<Object|null>} Task object
+     */
     async getTaskById(taskId) {
         if (!taskId) {
             throw new Error('Task ID is required');
@@ -176,6 +214,13 @@ class WorkflowRepository extends BaseRepository {
         return result.recordset[0] || null;
     }
 
+    /**
+     * Gets pending tasks for a user.
+     * 
+     * @async
+     * @param {string} userId - User UUID
+     * @returns {Promise<Array>} Array of pending tasks
+     */
     async getPendingTasksByUser(userId) {
         if (!userId) {
             throw new Error('User ID is required');
@@ -203,6 +248,16 @@ class WorkflowRepository extends BaseRepository {
         return result.recordset;
     }
 
+    /**
+     * Updates task status.
+     * 
+     * @async
+     * @param {string} taskId - Task UUID
+     * @param {string} status - New status
+     * @param {string} updatedBy - User UUID
+     * @param {Object} [metadata] - Additional metadata
+     * @returns {Promise<Object>} Updated task
+     */
     async updateTaskStatus(taskId, status, updatedBy, metadata = null) {
         if (!taskId || !status) {
             throw new Error('Task ID and status are required');
@@ -238,6 +293,13 @@ class WorkflowRepository extends BaseRepository {
         return this.getTaskById(taskId);
     }
 
+    /**
+     * Gets overdue tasks.
+     * 
+     * @async
+     * @param {number} [daysThreshold=0] - Days threshold
+     * @returns {Promise<Array>} Array of overdue tasks
+     */
     async getOverdueTasks(daysThreshold = 0) {
         const query = `
             SELECT 
@@ -259,6 +321,13 @@ class WorkflowRepository extends BaseRepository {
         return result.recordset;
     }
 
+    /**
+     * Gets task counts for a user.
+     * 
+     * @async
+     * @param {string} userId - User UUID
+     * @returns {Promise<Object>} Task counts
+     */
     async getUserTaskCounts(userId) {
         if (!userId) {
             throw new Error('User ID is required');

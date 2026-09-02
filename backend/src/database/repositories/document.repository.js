@@ -1,4 +1,3 @@
-// src/database/repositories/document.repository.js
 /**
  * Document Repository
  * ===================
@@ -18,25 +17,41 @@
  * - sharepoint_site_id (nvarchar, nullable)
  * - sharepoint_drive_id (nvarchar, nullable)
  * - sharepoint_item_id (nvarchar, nullable)
- * - is_archived (bit, nullable)
+ * - is_archived (bit, nullable) - 1 = archived, 0 = active
  * - uploaded_by (uniqueidentifier, nullable, FK to persons)
  * - uploaded_at (datetime2, nullable)
  * - updated_at (datetime2, nullable)
  * 
+ * Note: There is NO 'is_deleted' column. Use is_archived instead.
+ * 
  * @module repositories/document.repository
  * @requires ./base.repository
  * @requires ../index
+ * @requires ../../logging/logger
  */
 
 const BaseRepository = require('./base.repository');
 const { executeQuery, sql } = require('../index');
 const logger = require('../../logging/logger');
 
+/**
+ * DocumentRepository class for managing documents.
+ * 
+ * @class DocumentRepository
+ * @extends BaseRepository
+ */
 class DocumentRepository extends BaseRepository {
     constructor() {
         super('documents', 'document_id');
     }
 
+    /**
+     * Finds a document with all related data.
+     * 
+     * @async
+     * @param {string} id - Document UUID
+     * @returns {Promise<Object|null>} Complete document object
+     */
     async findFullDocument(id) {
         if (!id) {
             throw new Error('Document ID is required');
@@ -62,6 +77,13 @@ class DocumentRepository extends BaseRepository {
         return result.recordset[0] || null;
     }
 
+    /**
+     * Finds all documents for an IP record.
+     * 
+     * @async
+     * @param {string} ipRecordId - IP record UUID
+     * @returns {Promise<Array>} Array of documents
+     */
     async findByIpRecord(ipRecordId) {
         if (!ipRecordId) {
             throw new Error('IP Record ID is required');
@@ -84,6 +106,14 @@ class DocumentRepository extends BaseRepository {
         return result.recordset;
     }
 
+    /**
+     * Gets document version history.
+     * 
+     * @async
+     * @param {string} ipRecordId - IP record UUID
+     * @param {string} documentType - Type of document
+     * @returns {Promise<Array>} Array of document versions
+     */
     async getVersionHistory(ipRecordId, documentType) {
         if (!ipRecordId) {
             throw new Error('IP Record ID is required');
@@ -113,6 +143,14 @@ class DocumentRepository extends BaseRepository {
         return result.recordset;
     }
 
+    /**
+     * Archives a document (soft delete using is_archived).
+     * 
+     * @async
+     * @param {string} id - Document UUID
+     * @param {string} updatedBy - User UUID
+     * @returns {Promise<Object>} Archived document
+     */
     async archiveDocument(id, updatedBy) {
         if (!id) {
             throw new Error('Document ID is required');
@@ -133,6 +171,14 @@ class DocumentRepository extends BaseRepository {
         return this.findById(id);
     }
 
+    /**
+     * Searches documents by filename or description.
+     * 
+     * @async
+     * @param {string} searchQuery - Search term
+     * @param {number} [limit=20] - Max results
+     * @returns {Promise<Array>} Array of matching documents
+     */
     async search(searchQuery, limit = 20) {
         if (!searchQuery || searchQuery.length < 2) {
             return [];

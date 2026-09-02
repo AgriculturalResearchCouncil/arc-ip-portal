@@ -1,60 +1,70 @@
-const { executeQuery, executeTransaction, sql } = require('../index');
-const logger = require('../../logging/logger');
+/**
+ * Base Repository
+ * ===============
+ * Provides common CRUD (Create, Read, Update, Delete) operations for all repositories.
+ * This abstract class reduces code duplication and ensures consistent data access patterns.
+ * 
+ * Database Schema Notes:
+ * - Your database does NOT have an 'is_deleted' column in any table
+ * - Soft deletes are handled via the 'active' column in the persons table (0 = inactive)
+ * - Other tables use hard deletes or status-based tracking
+ * 
+ * @module repositories/base.repository
+ * @requires ../index
+ * @requires uuid
+ */
+
+const { executeQuery, sql } = require('../index');
 const { v4: uuidv4 } = require('uuid');
 
 /**
- * Base repository providing common CRUD operations
+ * BaseRepository class providing common database operations.
+ * 
+ * @class BaseRepository
+ * @property {string} tableName - Name of the database table
+ * @property {string} primaryKey - Name of the primary key column
  */
 class BaseRepository {
-    constructor(tableName, primaryKey = 'id', schema = 'dbo') {
+    /**
+     * Creates an instance of BaseRepository.
+     * 
+     * @param {string} tableName - Name of the database table (e.g., 'persons', 'ip_records')
+     * @param {string} primaryKey - Name of the primary key column (default: 'id')
+     */
+    constructor(tableName, primaryKey = 'id') {
         this.tableName = tableName;
         this.primaryKey = primaryKey;
-        this.schema = schema;
-        this.fullTableName = `${schema}.${tableName}`;
     }
 
     /**
-     * Generate a new UUID
+     * Generates a new UUID v4 string for primary keys.
+     * 
+     * @returns {string} A new UUID v4 string
      */
     generateId() {
         return uuidv4();
     }
 
     /**
-     * Build WHERE clause from filters
+     * Finds a record by its primary key.
+     * 
+     * @async
+     * @param {string} id - The primary key value (UUID)
+     * @param {string} [columns='*'] - Columns to select
+     * @returns {Promise<Object|null>} The record object or null if not found
+     * 
+     * @example
+     * const person = await repo.findById('123e4567-e89b-12d3-a456-426614174000');
      */
-    buildWhereClause(filters, params) {
-        if (!filters || Object.keys(filters).length === 0) {
-            return { whereClause: '', params: [] };
+    async findById(id, columns = '*') {
+        if (!id) {
+            return null;
         }
 
-        const conditions = [];
-        Object.entries(filters).forEach(([key, value]) => {
-            if (value !== undefined && value !== null) {
-                if (typeof value === 'string' && value.includes('%')) {
-                    conditions.push(`${key} LIKE @${key}`);
-                } else {
-                    conditions.push(`${key} = @${key}`);
-                }
-                params.push({ name: key, value });
-            }
-        });
-
-        return {
-            whereClause: conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '',
-            params,
-        };
-    }
-
-    /**
-     * Find record by primary key
-     */
-    async findById(id, columns = '*', includeDeleted = false) {
         const query = `
             SELECT ${columns} 
-            FROM ${this.fullTableName} 
-            WHERE ${this.primaryKey} = @id 
-            ${!includeDeleted ? 'AND is_deleted = 0' : ''}
+            FROM ${this.tableName} 
+            WHERE ${this.primaryKey} = @id
         `;
         
         const result = await executeQuery(query, [
@@ -65,42 +75,74 @@ class BaseRepository {
     }
 
     /**
-     * Find all records with optional filtering
+     * Finds all records with optional filtering, sorting, and pagination.
+     * 
+     * @async
+     * @param {Object} [filters={}] - Key-value pairs for WHERE clause
+     * @param {Object} [options={}] - Query options
+     * @param {string} [options.sortBy] - Column to sort by
+     * @param {string} [options.sortOrder='ASC'] - Sort order ('ASC' or 'DESC')
+     * @param {number} [options.limit] - Maximum records to return
+     * @param {number} [options.offset=0] - Records to skip (for pagination)
+     * @returns {Promise<Array>} Array of record objects
+     * 
+     * @example
+     * const users = await repo.findAll(
+     *   { status: 'Active' },
+     *   { sortBy: 'created_at', sortOrder: 'DESC', limit: 10 }
+     * );
      */
     async findAll(filters = {}, options = {}) {
-        let query = `SELECT * FROM ${this.fullTableName} WHERE 1=1`;
+        let query = `SELECT * FROM ${this.tableName} WHERE 1=1`;
         let params = [];
-        let filterParams = [];
 
         // Apply filters
-        const { whereClause, params: filterParamsResult } = this.buildWhereClause(filters, filterParams);
-        query += ` ${whereClause}`;
-
-        // Add soft delete filter
-        if (!options.includeDeleted) {
-            query += ` AND is_deleted = 0`;
+        if (Object.keys(filters).length > 0) {
+            const conditions = [];
+            Object.entries(filters).forEach(([key, value]) => {
+                if (value !== undefined && value !== null) {
+                    conditions.push(`${key} = @${key}`);
+                    params.push({ name: key, value });
+                }
+            });
+            if (conditions.length > 0) {
+                query += ` AND ${conditions.join(' AND ')}`;
+            }
         }
 
-        // Add sorting
+        // Apply sorting
         if (options.sortBy) {
             const sortOrder = options.sortOrder || 'ASC';
             query += ` ORDER BY ${options.sortBy} ${sortOrder}`;
-        } else {
+        } else if (this.tableName === 'ip_records') {
             query += ` ORDER BY created_at DESC`;
         }
 
-        // Add pagination
+        // Apply pagination
         if (options.limit) {
             const offset = options.offset || 0;
             query += ` OFFSET ${offset} ROWS FETCH NEXT ${options.limit} ROWS ONLY`;
         }
 
-        const result = await executeQuery(query, filterParamsResult);
+        const result = await executeQuery(query, params);
         return result.recordset;
     }
 
     /**
-     * Create a new record
+     * Creates a new record in the database.
+     * Automatically generates a UUID if no primary key is provided.
+     * 
+     * @async
+     * @param {Object} data - Key-value pairs for the new record
+     * @returns {Promise<Object>} The created record
+     * @throws {Error} If creation fails
+     * 
+     * @example
+     * const newPerson = await repo.create({
+     *   first_name: 'John',
+     *   last_name: 'Doe',
+     *   email: 'john@example.com'
+     * });
      */
     async create(data) {
         const id = data[this.primaryKey] || this.generateId();
@@ -115,7 +157,7 @@ class BaseRepository {
             paramNames.push(`@${this.primaryKey}`);
         }
 
-        // Add audit fields
+        // Add created_at timestamp if not provided
         if (!data.created_at) {
             columns.push('created_at');
             values.push(new Date());
@@ -123,9 +165,8 @@ class BaseRepository {
         }
 
         const query = `
-            INSERT INTO ${this.fullTableName} (${columns.join(', ')})
+            INSERT INTO ${this.tableName} (${columns.join(', ')})
             VALUES (${paramNames.join(', ')})
-            SELECT SCOPE_IDENTITY() as id
         `;
 
         const params = columns.map((col, index) => ({
@@ -133,22 +174,37 @@ class BaseRepository {
             value: values[index]
         }));
 
-        const result = await executeQuery(query, params);
-        return this.findById(result.recordset[0]?.id || id);
+        await executeQuery(query, params);
+        return this.findById(id);
     }
 
     /**
-     * Update a record
+     * Updates an existing record.
+     * 
+     * @async
+     * @param {string} id - The primary key value
+     * @param {Object} data - Key-value pairs to update
+     * @returns {Promise<Object>} The updated record
+     * @throws {Error} If update fails
+     * 
+     * @example
+     * const updated = await repo.update(userId, {
+     *   first_name: 'Jane',
+     *   last_name: 'Smith'
+     * });
      */
     async update(id, data) {
-        const entries = Object.entries(data).filter(([key]) => key !== this.primaryKey);
-        if (entries.length === 0) {
-            return this.findById(id);
+        if (!id) {
+            throw new Error('ID is required');
         }
 
-        // Add updated_at
-        if (!data.updated_at) {
-            entries.push(['updated_at', new Date()]);
+        // Filter out primary key and updated_at (handled by database)
+        const entries = Object.entries(data)
+            .filter(([key]) => key !== this.primaryKey && key !== 'updated_at')
+            .filter(([_, value]) => value !== undefined && value !== null);
+
+        if (entries.length === 0) {
+            return this.findById(id);
         }
 
         const setClause = entries.map(([key]) => `${key} = @${key}`).join(', ');
@@ -157,11 +213,10 @@ class BaseRepository {
             value: value
         }));
 
-        // Add ID parameter
         params.push({ name: this.primaryKey, value: id });
 
         const query = `
-            UPDATE ${this.fullTableName}
+            UPDATE ${this.tableName}
             SET ${setClause}
             WHERE ${this.primaryKey} = @${this.primaryKey}
         `;
@@ -171,82 +226,72 @@ class BaseRepository {
     }
 
     /**
-     * Soft delete a record
+     * Permanently deletes a record from the database.
+     * Use with caution - this cannot be undone.
+     * 
+     * @async
+     * @param {string} id - The primary key value
+     * @returns {Promise<boolean>} True if successful
+     * @warning This permanently deletes data - use softDelete when possible
+     * 
+     * @example
+     * await repo.delete(testId);
      */
-    async softDelete(id) {
+    async delete(id) {
+        if (!id) {
+            throw new Error('ID is required');
+        }
+
         const query = `
-            UPDATE ${this.fullTableName}
-            SET is_deleted = 1, deleted_at = GETDATE()
+            DELETE FROM ${this.tableName}
             WHERE ${this.primaryKey} = @id
         `;
+        
         await executeQuery(query, [{ name: 'id', type: sql.UniqueIdentifier, value: id }]);
         return true;
     }
 
     /**
-     * Hard delete a record (use with caution)
-     */
-    async hardDelete(id) {
-        const query = `DELETE FROM ${this.fullTableName} WHERE ${this.primaryKey} = @id`;
-        await executeQuery(query, [{ name: 'id', type: sql.UniqueIdentifier, value: id }]);
-        return true;
-    }
-
-    /**
-     * Count records matching filters
+     * Counts records matching the given filters.
+     * 
+     * @async
+     * @param {Object} [filters={}] - Key-value pairs for filtering
+     * @returns {Promise<number>} The count of matching records
+     * 
+     * @example
+     * const count = await repo.count({ status: 'Active' });
      */
     async count(filters = {}) {
-        let query = `SELECT COUNT(*) as count FROM ${this.fullTableName} WHERE 1=1`;
-        let params = [];
+        let query = `SELECT COUNT(*) as count FROM ${this.tableName} WHERE 1=1`;
+        const params = [];
 
-        const { whereClause, params: filterParams } = this.buildWhereClause(filters, params);
-        query += ` ${whereClause}`;
-        query += ` AND is_deleted = 0`;
+        if (Object.keys(filters).length > 0) {
+            const conditions = [];
+            Object.entries(filters).forEach(([key, value]) => {
+                if (value !== undefined && value !== null) {
+                    conditions.push(`${key} = @${key}`);
+                    params.push({ name: key, value });
+                }
+            });
+            if (conditions.length > 0) {
+                query += ` AND ${conditions.join(' AND ')}`;
+            }
+        }
 
-        const result = await executeQuery(query, filterParams);
+        const result = await executeQuery(query, params);
         return result.recordset[0]?.count || 0;
     }
 
     /**
-     * Check if a record exists
+     * Checks if a record exists.
+     * 
+     * @async
+     * @param {string} id - The primary key value
+     * @returns {Promise<boolean>} True if the record exists
      */
     async exists(id) {
         const count = await this.count({ [this.primaryKey]: id });
         return count > 0;
-    }
-
-    /**
-     * Execute a transaction with callback
-     */
-    async transaction(callback) {
-        return executeTransaction(callback);
-    }
-
-    /**
-     * Bulk insert records
-     */
-    async bulkInsert(records) {
-        if (!records || records.length === 0) return [];
-
-        const columns = Object.keys(records[0]);
-        const values = [];
-        const params = [];
-
-        records.forEach((record, index) => {
-            Object.entries(record).forEach(([key, value]) => {
-                const paramName = `${key}_${index}`;
-                values.push(`@${paramName}`);
-                params.push({ name: paramName, value });
-            });
-        });
-
-        const query = `
-            INSERT INTO ${this.fullTableName} (${columns.join(', ')})
-            VALUES (${values.join(', ')})
-        `;
-
-        await executeQuery(query, params);
-        return true;
     }
 }
 

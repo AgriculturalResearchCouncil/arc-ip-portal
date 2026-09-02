@@ -1,4 +1,3 @@
-// src/database/repositories/audit.repository.js
 /**
  * Audit Repository
  * ================
@@ -8,29 +7,54 @@
  * - audit_log_id (bigint, PK, auto-increment)
  * - table_name (nvarchar, required)
  * - record_id (uniqueidentifier, required)
- * - action (nvarchar, required) - INSERT, UPDATE, DELETE
- * - old_values (nvarchar, nullable) - JSON
- * - new_values (nvarchar, nullable) - JSON
+ * - action (nvarchar, required) - 'INSERT', 'UPDATE', 'DELETE'
+ * - old_values (nvarchar, nullable) - JSON string of old values
+ * - new_values (nvarchar, nullable) - JSON string of new values
  * - changed_by (uniqueidentifier, nullable, FK to persons)
  * - ip_address (nvarchar, nullable)
  * - user_agent (nvarchar, nullable)
  * - changed_at (datetime2, nullable)
  * 
+ * Note: There is NO 'is_deleted' column in this table.
+ * audit_log_id is a bigint auto-increment, not a GUID.
+ * 
  * @module repositories/audit.repository
  * @requires ./base.repository
  * @requires ../index
+ * @requires ../../logging/logger
  */
 
 const BaseRepository = require('./base.repository');
 const { executeQuery, sql } = require('../index');
 const logger = require('../../logging/logger');
 
+/**
+ * AuditRepository class for managing audit logs.
+ * 
+ * @class AuditRepository
+ * @extends BaseRepository
+ */
 class AuditRepository extends BaseRepository {
     constructor() {
         // Note: audit_log_id is bigint auto-increment, not a GUID
         super('audit_logs', 'audit_log_id');
     }
 
+    /**
+     * Logs an audit event.
+     * 
+     * @async
+     * @param {Object} data - Audit data
+     * @param {string} data.tableName - Table name being audited (required)
+     * @param {string} data.recordId - Record ID being audited (required)
+     * @param {string} data.action - Action type (INSERT, UPDATE, DELETE) (required)
+     * @param {Object} [data.oldValues] - Old values (for UPDATE, DELETE)
+     * @param {Object} [data.newValues] - New values (for INSERT, UPDATE)
+     * @param {string} [data.changedBy] - User UUID
+     * @param {string} [data.ipAddress] - IP address
+     * @param {string} [data.userAgent] - User agent
+     * @returns {Promise<number>} Audit log ID
+     */
     async logEvent(data) {
         if (!data.tableName || !data.recordId || !data.action) {
             throw new Error('Table name, record ID, and action are required');
@@ -88,6 +112,21 @@ class AuditRepository extends BaseRepository {
         return auditId;
     }
 
+    /**
+     * Gets audit logs with filtering.
+     * 
+     * @async
+     * @param {Object} [filters={}] - Filter options
+     * @param {string} [filters.tableName] - Table name
+     * @param {string} [filters.recordId] - Record ID
+     * @param {string} [filters.action] - Action type
+     * @param {string} [filters.changedBy] - User UUID
+     * @param {string} [filters.dateFrom] - From date
+     * @param {string} [filters.dateTo] - To date
+     * @param {number} [filters.limit] - Limit results
+     * @param {number} [filters.offset] - Offset for pagination
+     * @returns {Promise<Array>} Audit logs
+     */
     async getAuditLogs(filters = {}) {
         let query = `
             SELECT 
@@ -142,6 +181,15 @@ class AuditRepository extends BaseRepository {
         return result.recordset;
     }
 
+    /**
+     * Gets audit logs for a specific entity.
+     * 
+     * @async
+     * @param {string} recordId - Record UUID
+     * @param {string} tableName - Table name
+     * @param {number} [limit] - Max results
+     * @returns {Promise<Array>} Audit logs
+     */
     async getEntityAuditLogs(recordId, tableName, limit = null) {
         if (!recordId || !tableName) {
             throw new Error('Record ID and table name are required');
@@ -171,6 +219,13 @@ class AuditRepository extends BaseRepository {
         return result.recordset;
     }
 
+    /**
+     * Gets audit statistics.
+     * 
+     * @async
+     * @param {number} [days=30] - Days to look back
+     * @returns {Promise<Object>} Audit statistics
+     */
     async getAuditStatistics(days = 30) {
         const query = `
             SELECT 

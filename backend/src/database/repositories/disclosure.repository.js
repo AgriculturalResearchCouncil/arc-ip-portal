@@ -1,4 +1,3 @@
-// src/database/repositories/disclosure.repository.js
 /**
  * Disclosure Repository
  * =====================
@@ -12,24 +11,40 @@
  * - novelty_description (nvarchar, nullable)
  * - commercialisation_potential (nvarchar, nullable)
  * - recommendation (nvarchar, nullable)
- * - review_status (nvarchar, nullable)
+ * - review_status (nvarchar, nullable) - 'Draft', 'Submitted', 'Under Review', 'Reviewed', 'Recommended', 'Rejected', 'Approved'
  * - created_at (datetime2, nullable)
  * - updated_at (datetime2, nullable)
+ * 
+ * Note: There is NO 'is_deleted' column in this table.
  * 
  * @module repositories/disclosure.repository
  * @requires ./base.repository
  * @requires ../index
+ * @requires ../../logging/logger
  */
 
 const BaseRepository = require('./base.repository');
 const { executeQuery, sql } = require('../index');
 const logger = require('../../logging/logger');
 
+/**
+ * DisclosureRepository class for managing invention disclosures.
+ * 
+ * @class DisclosureRepository
+ * @extends BaseRepository
+ */
 class DisclosureRepository extends BaseRepository {
     constructor() {
         super('disclosures', 'disclosure_id');
     }
 
+    /**
+     * Finds a complete disclosure with all related data.
+     * 
+     * @async
+     * @param {string} id - Disclosure UUID
+     * @returns {Promise<Object|null>} Complete disclosure object
+     */
     async findFullDisclosure(id) {
         if (!id) {
             throw new Error('Disclosure ID is required');
@@ -60,6 +75,13 @@ class DisclosureRepository extends BaseRepository {
         return result.recordset[0] || null;
     }
 
+    /**
+     * Finds disclosures by researcher.
+     * 
+     * @async
+     * @param {string} personId - Researcher UUID
+     * @returns {Promise<Array>} Array of disclosures
+     */
     async findByResearcher(personId) {
         if (!personId) {
             throw new Error('Person ID is required');
@@ -84,6 +106,21 @@ class DisclosureRepository extends BaseRepository {
         return result.recordset;
     }
 
+    /**
+     * Finds disclosures with advanced filtering for TTO staff.
+     * 
+     * @async
+     * @param {Object} [filters={}] - Filter options
+     * @param {string} [filters.reviewStatus] - Filter by review status
+     * @param {string} [filters.category] - Filter by disclosure category
+     * @param {string} [filters.dateFrom] - Filter by disclosure date from
+     * @param {string} [filters.dateTo] - Filter by disclosure date to
+     * @param {string} [filters.sortBy='disclosure_date'] - Sort field
+     * @param {string} [filters.sortOrder='DESC'] - Sort order
+     * @param {number} [filters.limit] - Limit results
+     * @param {number} [filters.offset] - Offset for pagination
+     * @returns {Promise<Array>} Array of disclosures
+     */
     async findWithFilters(filters = {}) {
         let query = `
             SELECT 
@@ -136,12 +173,22 @@ class DisclosureRepository extends BaseRepository {
         return result.recordset;
     }
 
+    /**
+     * Updates the review status of a disclosure.
+     * 
+     * @async
+     * @param {string} disclosureId - Disclosure UUID
+     * @param {string} status - New status
+     * @param {string} reviewerId - Person ID of the reviewer
+     * @param {string} [recommendation] - Review recommendation/comments
+     * @returns {Promise<Object>} Updated disclosure
+     */
     async updateStatus(disclosureId, status, reviewerId, recommendation = null) {
         if (!disclosureId || !status || !reviewerId) {
             throw new Error('Disclosure ID, status, and reviewer ID are required');
         }
 
-        let query = `
+        const query = `
             UPDATE disclosures
             SET review_status = @status,
                 recommendation = @recommendation,
@@ -161,6 +208,12 @@ class DisclosureRepository extends BaseRepository {
         return this.findById(disclosureId);
     }
 
+    /**
+     * Gets disclosure statistics.
+     * 
+     * @async
+     * @returns {Promise<Object>} Statistics object
+     */
     async getStatistics() {
         const query = `
             SELECT 
@@ -180,6 +233,12 @@ class DisclosureRepository extends BaseRepository {
         return result.recordset[0] || {};
     }
 
+    /**
+     * Gets pending disclosures for TTO review.
+     * 
+     * @async
+     * @returns {Promise<Array>} Array of pending disclosures
+     */
     async getPendingReviews() {
         const query = `
             SELECT 
@@ -197,6 +256,13 @@ class DisclosureRepository extends BaseRepository {
         return result.recordset;
     }
 
+    /**
+     * Searches disclosures by title or reference number.
+     * 
+     * @async
+     * @param {string} searchQuery - Search term
+     * @returns {Promise<Array>} Array of matching disclosures
+     */
     async search(searchQuery) {
         if (!searchQuery || searchQuery.length < 2) {
             return [];

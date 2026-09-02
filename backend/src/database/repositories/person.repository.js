@@ -3,7 +3,7 @@
  * =================
  * Manages database operations for the persons table.
  * 
- * Database Schema (persons table):
+ * Database Schema (persons):
  * - person_id (uniqueidentifier, PK)
  * - employee_number (nvarchar, nullable)
  * - first_name (nvarchar, required)
@@ -11,9 +11,11 @@
  * - email (nvarchar, required)
  * - institute_id (uniqueidentifier, nullable, FK to institutes)
  * - position_title (nvarchar, nullable)
- * - active (bit, nullable)
+ * - active (bit, nullable) - 1 = active, 0 = inactive
  * - created_at (datetime2, nullable)
  * - updated_at (datetime2, nullable)
+ * 
+ * Note: There is NO 'is_deleted' or 'last_login' column in this table.
  * 
  * @module repositories/person.repository
  * @requires ./base.repository
@@ -25,7 +27,18 @@ const BaseRepository = require('./base.repository');
 const { executeQuery, sql } = require('../index');
 const logger = require('../../logging/logger');
 
+/**
+ * PersonRepository class for managing user/person data.
+ * Extends BaseRepository with person-specific operations.
+ * 
+ * @class PersonRepository
+ * @extends BaseRepository
+ */
 class PersonRepository extends BaseRepository {
+    /**
+     * Creates an instance of PersonRepository.
+     * Initializes with the 'persons' table and 'person_id' as primary key.
+     */
     constructor() {
         super('persons', 'person_id');
     }
@@ -36,13 +49,18 @@ class PersonRepository extends BaseRepository {
 
     /**
      * Finds a person by their email address.
+     * Email addresses are unique in the system.
      * 
      * @async
      * @param {string} email - The person's email address
-     * @returns {Promise<Object|null>} Person object or null
+     * @returns {Promise<Object|null>} Person object or null if not found
+     * 
+     * @example
+     * const user = await personRepository.findByEmail('john.doe@arc.agric.za');
      */
     async findByEmail(email) {
         if (!email) {
+            logger.warn('findByEmail called with null/undefined email');
             return null;
         }
 
@@ -63,10 +81,11 @@ class PersonRepository extends BaseRepository {
      * 
      * @async
      * @param {string} employeeNumber - The employee's staff number
-     * @returns {Promise<Object|null>} Person object or null
+     * @returns {Promise<Object|null>} Person object or null if not found
      */
     async findByEmployeeId(employeeNumber) {
         if (!employeeNumber) {
+            logger.warn('findByEmployeeId called with null/undefined employee number');
             return null;
         }
 
@@ -84,13 +103,15 @@ class PersonRepository extends BaseRepository {
 
     /**
      * Finds a person by ID with all related data.
+     * Includes roles and institute information.
      * 
      * @async
      * @param {string} personId - The person's UUID
-     * @returns {Promise<Object|null>} Complete person object
+     * @returns {Promise<Object|null>} Complete person object or null
      */
     async findByIdWithDetails(personId) {
         if (!personId) {
+            logger.warn('findByIdWithDetails called with null/undefined personId');
             return null;
         }
 
@@ -120,6 +141,8 @@ class PersonRepository extends BaseRepository {
         }
 
         const person = result.recordset[0];
+        
+        // Parse comma-separated roles string into an array
         if (person.roles) {
             person.roles = person.roles.split(', ').filter(Boolean);
         } else {
@@ -139,9 +162,14 @@ class PersonRepository extends BaseRepository {
      * @async
      * @param {string} personId - The person's UUID
      * @returns {Promise<Array>} Array of role objects
+     * 
+     * @example
+     * const roles = await personRepository.getUserRoles(personId);
+     * roles.forEach(role => console.log(role.role_name));
      */
     async getUserRoles(personId) {
         if (!personId) {
+            logger.warn('getUserRoles called with null/undefined personId');
             return [];
         }
 
@@ -174,6 +202,7 @@ class PersonRepository extends BaseRepository {
      */
     async hasRole(personId, roleName) {
         if (!personId || !roleName) {
+            logger.warn('hasRole called with null/undefined parameters');
             return false;
         }
 
@@ -223,6 +252,7 @@ class PersonRepository extends BaseRepository {
         ]);
 
         if (checkResult.recordset.length > 0) {
+            logger.info('Role already assigned', { personId, roleName });
             return true;
         }
 
@@ -238,12 +268,13 @@ class PersonRepository extends BaseRepository {
             { name: 'roleId', type: sql.UniqueIdentifier, value: roleId }
         ]);
 
-        logger.info('Role assigned', { personId, roleName });
+        logger.info('Role assigned successfully', { personId, roleName });
         return true;
     }
 
     /**
      * Removes a role from a person.
+     * Since there is no is_active column, we delete the record completely.
      * 
      * @async
      * @param {string} personId - The person's UUID
@@ -263,12 +294,17 @@ class PersonRepository extends BaseRepository {
             AND r.role_name = @roleName
         `;
 
-        await executeQuery(query, [
+        const result = await executeQuery(query, [
             { name: 'personId', type: sql.UniqueIdentifier, value: personId },
             { name: 'roleName', value: roleName }
         ]);
 
-        logger.info('Role removed', { personId, roleName });
+        if (result.rowsAffected && result.rowsAffected[0] > 0) {
+            logger.info('Role removed successfully', { personId, roleName });
+        } else {
+            logger.info('Role was not assigned', { personId, roleName });
+        }
+
         return true;
     }
 
@@ -331,6 +367,7 @@ class PersonRepository extends BaseRepository {
      */
     async search(searchQuery, limit = 20) {
         if (!searchQuery || searchQuery.length < 2) {
+            logger.warn('Search query too short or empty', { searchQuery });
             return [];
         }
 
@@ -408,11 +445,11 @@ class PersonRepository extends BaseRepository {
 
     /**
      * Updates the last login timestamp.
-     * Note: persons table doesn't have last_login column, so this is a no-op.
+     * Note: The persons table doesn't have a last_login column, so this is a no-op.
      * 
      * @async
      * @param {string} personId - The person's UUID
-     * @returns {Promise<boolean>} True if update was successful
+     * @returns {Promise<boolean>} True if successful
      */
     async updateLastLogin(personId) {
         // persons table doesn't have last_login column
@@ -427,7 +464,7 @@ class PersonRepository extends BaseRepository {
 
     /**
      * Deactivates a user account.
-     * Sets active = 0.
+     * Sets active = 0 (inactive) but doesn't delete the record.
      * 
      * @async
      * @param {string} personId - The person's UUID
@@ -455,7 +492,7 @@ class PersonRepository extends BaseRepository {
 
     /**
      * Reactivates a user account.
-     * Sets active = 1.
+     * Sets active = 1 (active).
      * 
      * @async
      * @param {string} personId - The person's UUID
@@ -504,7 +541,7 @@ class PersonRepository extends BaseRepository {
     }
 
     // ============================================================
-    // CRUD OPERATIONS
+    // CRUD OPERATIONS (Overrides Base Methods)
     // ============================================================
 
     /**
@@ -642,7 +679,7 @@ class PersonRepository extends BaseRepository {
     }
 
     /**
-     * Hard delete a person (use with caution).
+     * Permanently deletes a person (use with caution).
      * 
      * @async
      * @param {string} id - The person's UUID
@@ -714,4 +751,7 @@ class PersonRepository extends BaseRepository {
     }
 }
 
+/**
+ * Export a singleton instance of PersonRepository.
+ */
 module.exports = new PersonRepository();

@@ -1,4 +1,3 @@
-// src/database/repositories/commercialisation.repository.js
 /**
  * Commercialisation Repository
  * ============================
@@ -6,29 +5,45 @@
  * 
  * Database Schema (commercialisation_records):
  * - commercialisation_id (uniqueidentifier, PK)
- * - ip_record_id (uniqueidentifier, FK)
- * - commercialisation_model (nvarchar, nullable)
+ * - ip_record_id (uniqueidentifier, FK to ip_records)
+ * - commercialisation_model (nvarchar, nullable) - 'Licensing', 'Spin-off', 'Joint Venture', 'R&D Collaboration'
  * - launch_date (date, nullable)
  * - target_market (nvarchar, nullable)
  * - revenue_projection (decimal, nullable)
- * - status (nvarchar, nullable)
+ * - status (nvarchar, nullable) - 'Planning', 'Active', 'Completed', 'Cancelled'
  * - created_at (datetime2, nullable)
  * - updated_at (datetime2, nullable)
+ * 
+ * Note: There is NO 'is_deleted' column in this table.
  * 
  * @module repositories/commercialisation.repository
  * @requires ./base.repository
  * @requires ../index
+ * @requires ../../logging/logger
  */
 
 const BaseRepository = require('./base.repository');
 const { executeQuery, sql } = require('../index');
 const logger = require('../../logging/logger');
 
+/**
+ * CommercialisationRepository class for managing commercialisation projects.
+ * 
+ * @class CommercialisationRepository
+ * @extends BaseRepository
+ */
 class CommercialisationRepository extends BaseRepository {
     constructor() {
         super('commercialisation_records', 'commercialisation_id');
     }
 
+    /**
+     * Finds a complete commercialisation record.
+     * 
+     * @async
+     * @param {string} id - Commercialisation UUID
+     * @returns {Promise<Object|null>} Complete commercialisation object
+     */
     async findFullCommercialisation(id) {
         if (!id) {
             throw new Error('Commercialisation ID is required');
@@ -55,6 +70,13 @@ class CommercialisationRepository extends BaseRepository {
         return result.recordset[0] || null;
     }
 
+    /**
+     * Finds commercialisation projects by IP record.
+     * 
+     * @async
+     * @param {string} ipRecordId - IP record UUID
+     * @returns {Promise<Array>} Array of commercialisation projects
+     */
     async findByIpRecord(ipRecordId) {
         if (!ipRecordId) {
             throw new Error('IP Record ID is required');
@@ -79,6 +101,12 @@ class CommercialisationRepository extends BaseRepository {
         return result.recordset;
     }
 
+    /**
+     * Gets commercialisation statistics.
+     * 
+     * @async
+     * @returns {Promise<Object>} Statistics object
+     */
     async getStatistics() {
         const query = `
             SELECT 
@@ -99,6 +127,15 @@ class CommercialisationRepository extends BaseRepository {
         return result.recordset[0] || {};
     }
 
+    /**
+     * Updates commercialisation status.
+     * 
+     * @async
+     * @param {string} commercialisationId - Commercialisation UUID
+     * @param {string} status - New status
+     * @param {string} updatedBy - User UUID
+     * @returns {Promise<Object>} Updated commercialisation
+     */
     async updateStatus(commercialisationId, status, updatedBy) {
         if (!commercialisationId || !status) {
             throw new Error('Commercialisation ID and status are required');
@@ -120,6 +157,14 @@ class CommercialisationRepository extends BaseRepository {
         return this.findById(commercialisationId);
     }
 
+    /**
+     * Searches commercialisation projects.
+     * 
+     * @async
+     * @param {string} searchQuery - Search term
+     * @param {number} [limit=20] - Max results
+     * @returns {Promise<Array>} Array of matching projects
+     */
     async search(searchQuery, limit = 20) {
         if (!searchQuery || searchQuery.length < 2) {
             return [];

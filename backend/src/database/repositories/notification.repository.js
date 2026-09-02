@@ -1,4 +1,3 @@
-// src/database/repositories/notification.repository.js
 /**
  * Notification Repository
  * =======================
@@ -7,26 +6,46 @@
  * Database Schema (notifications):
  * - notification_id (uniqueidentifier, PK)
  * - person_id (uniqueidentifier, FK to persons)
- * - notification_type (nvarchar, required)
+ * - notification_type (nvarchar, required) - 'WORKFLOW_TASK', 'RENEWAL_ALERT', 'OBLIGATION_REMINDER', 'DISCLOSURE_REVIEW', 'LICENCE_APPROVAL', 'SYSTEM_ALERT'
  * - subject (nvarchar, required)
  * - message (nvarchar, required)
- * - read_at (datetime2, nullable)
+ * - read_at (datetime2, nullable) - NULL = unread, NOT NULL = read
  * - created_at (datetime2, nullable)
+ * 
+ * Note: There is NO 'is_deleted' column in this table.
  * 
  * @module repositories/notification.repository
  * @requires ./base.repository
  * @requires ../index
+ * @requires ../../logging/logger
  */
 
 const BaseRepository = require('./base.repository');
 const { executeQuery, sql } = require('../index');
 const logger = require('../../logging/logger');
 
+/**
+ * NotificationRepository class for managing notifications.
+ * 
+ * @class NotificationRepository
+ * @extends BaseRepository
+ */
 class NotificationRepository extends BaseRepository {
     constructor() {
         super('notifications', 'notification_id');
     }
 
+    /**
+     * Creates a notification.
+     * 
+     * @async
+     * @param {Object} data - Notification data
+     * @param {string} data.personId - User UUID (required)
+     * @param {string} data.notificationType - Type of notification (required)
+     * @param {string} data.subject - Notification subject (required)
+     * @param {string} data.message - Notification message (required)
+     * @returns {Promise<string>} Notification ID
+     */
     async createNotification(data) {
         if (!data.personId || !data.notificationType || !data.subject || !data.message) {
             throw new Error('Person ID, notification type, subject, and message are required');
@@ -63,6 +82,18 @@ class NotificationRepository extends BaseRepository {
         return notificationId;
     }
 
+    /**
+     * Gets notifications for a user.
+     * 
+     * @async
+     * @param {string} personId - User UUID
+     * @param {Object} [filters={}] - Filter options
+     * @param {boolean} [filters.isRead] - Filter by read status
+     * @param {string} [filters.type] - Notification type
+     * @param {number} [filters.limit] - Limit results
+     * @param {number} [filters.offset] - Offset for pagination
+     * @returns {Promise<Array>} Array of notifications
+     */
     async getUserNotifications(personId, filters = {}) {
         if (!personId) {
             throw new Error('Person ID is required');
@@ -110,6 +141,14 @@ class NotificationRepository extends BaseRepository {
         return result.recordset;
     }
 
+    /**
+     * Gets unread notifications for a user.
+     * 
+     * @async
+     * @param {string} personId - User UUID
+     * @param {number} [limit] - Max results
+     * @returns {Promise<Array>} Unread notifications
+     */
     async getUnreadNotifications(personId, limit = null) {
         if (!personId) {
             throw new Error('Person ID is required');
@@ -142,6 +181,13 @@ class NotificationRepository extends BaseRepository {
         return result.recordset;
     }
 
+    /**
+     * Gets unread notification count.
+     * 
+     * @async
+     * @param {string} personId - User UUID
+     * @returns {Promise<number>} Unread count
+     */
     async getUnreadCount(personId) {
         if (!personId) {
             throw new Error('Person ID is required');
@@ -160,6 +206,14 @@ class NotificationRepository extends BaseRepository {
         return result.recordset[0]?.count || 0;
     }
 
+    /**
+     * Marks a notification as read.
+     * 
+     * @async
+     * @param {string} notificationId - Notification UUID
+     * @param {string} personId - User UUID (for verification)
+     * @returns {Promise<boolean>} True if successful
+     */
     async markAsRead(notificationId, personId) {
         if (!notificationId || !personId) {
             throw new Error('Notification ID and person ID are required');
@@ -176,9 +230,17 @@ class NotificationRepository extends BaseRepository {
             { name: 'personId', type: sql.UniqueIdentifier, value: personId }
         ]);
 
+        logger.info('Notification marked as read', { notificationId, personId });
         return true;
     }
 
+    /**
+     * Marks all notifications as read for a user.
+     * 
+     * @async
+     * @param {string} personId - User UUID
+     * @returns {Promise<number>} Number of notifications marked as read
+     */
     async markAllAsRead(personId) {
         if (!personId) {
             throw new Error('Person ID is required');
@@ -194,9 +256,19 @@ class NotificationRepository extends BaseRepository {
             { name: 'personId', type: sql.UniqueIdentifier, value: personId }
         ]);
 
-        return true;
+        const affectedRows = result?.rowsAffected?.[0] || 0;
+        logger.info('All notifications marked as read', { personId, count: affectedRows });
+        return affectedRows;
     }
 
+    /**
+     * Deletes a notification.
+     * 
+     * @async
+     * @param {string} notificationId - Notification UUID
+     * @param {string} personId - User UUID (for verification)
+     * @returns {Promise<boolean>} True if successful
+     */
     async deleteNotification(notificationId, personId) {
         if (!notificationId || !personId) {
             throw new Error('Notification ID and person ID are required');
@@ -212,6 +284,7 @@ class NotificationRepository extends BaseRepository {
             { name: 'personId', type: sql.UniqueIdentifier, value: personId }
         ]);
 
+        logger.info('Notification deleted', { notificationId, personId });
         return true;
     }
 }
