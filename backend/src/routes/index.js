@@ -18,6 +18,14 @@ const disclosureRoutes = require('./disclosure.routes');
 const ipAssetRoutes = require('./ip-asset.routes');
 const documentRoutes = require('./document.routes');
 
+// IP Type Routes
+const patentRoutes = require('./patent.routes');
+const pbrRoutes = require('./pbr.routes');
+const trademarkRoutes = require('./trademark.routes');
+const copyrightRoutes = require('./copyright.routes');
+const tradeSecretRoutes = require('./trade-secret.routes');
+const designRoutes = require('./design.routes');
+
 // API routes
 router.use('/auth', authRoutes);
 router.use('/users', userRoutes);
@@ -25,12 +33,15 @@ router.use('/disclosures', disclosureRoutes);
 router.use('/ip-assets', ipAssetRoutes);
 router.use('/documents', documentRoutes);
 
-/**
- * @route GET /api/v1
- * @description API information endpoint
- * @access Public
- * @returns {Object} API information
- */
+// IP Type endpoints
+router.use('/patents', patentRoutes);
+router.use('/pbr', pbrRoutes);
+router.use('/trademarks', trademarkRoutes);
+router.use('/copyrights', copyrightRoutes);
+router.use('/trade-secrets', tradeSecretRoutes);
+router.use('/designs', designRoutes);
+
+// API info
 router.get('/', (req, res) => {
     res.json({
         name: 'ARC IP Portal API',
@@ -42,23 +53,14 @@ router.get('/', (req, res) => {
             users: '/api/v1/users',
             disclosures: '/api/v1/disclosures',
             ipAssets: '/api/v1/ip-assets',
-            documents: '/api/v1/documents'
+            documents: '/api/v1/documents',
+            patents: '/api/v1/patents',
+            pbr: '/api/v1/pbr',
+            trademarks: '/api/v1/trademarks',
+            copyrights: '/api/v1/copyrights',
+            tradeSecrets: '/api/v1/trade-secrets',
+            designs: '/api/v1/designs'
         }
-    });
-});
-
-/**
- * @route GET /api/v1/health
- * @description Health check endpoint
- * @access Public
- * @returns {Object} Health status
- */
-router.get('/health', (req, res) => {
-    res.json({
-        status: 'healthy',
-        timestamp: new Date().toISOString(),
-        uptime: process.uptime(),
-        memory: process.memoryUsage()
     });
 });
 
