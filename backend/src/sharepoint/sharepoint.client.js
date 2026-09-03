@@ -13,7 +13,6 @@
  * - Error handling and logging
  * 
  * @module sharepoint/sharepoint.client
- * @requires axios
  * @requires @azure/identity
  * @requires @microsoft/microsoft-graph-client
  * @requires ../config/sharepoint
