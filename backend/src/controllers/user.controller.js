@@ -1,13 +1,14 @@
 /**
  * User Controller
  * ===============
- * Handles HTTP requests for user management.
- * Provides REST API endpoints for:
+ * HTTP handlers for user management endpoints.
+ * Provides REST API for:
  * - Getting all users
  * - Getting user by ID
- * - Searching users
- * - Managing user roles
- * - Activating/deactivating users
+ * - Searching users by name/email (using query string)
+ * - Getting users by institute
+ * - Role management (assign, remove)
+ * - User activation/deactivation
  * - User statistics
  * 
  * @module controllers/user.controller
@@ -24,9 +25,6 @@ const logger = require('../logging/logger');
  * 
  * @route GET /api/v1/users
  * @access Private - Admin, TTO Officer
- * @param {Object} req - Express request object
- * @param {Object} res - Express response object
- * @returns {Object} Array of users with roles
  */
 exports.findAll = catchAsync(async (req, res) => {
     const users = await personRepository.getAllUsersWithRoles();
@@ -43,10 +41,6 @@ exports.findAll = catchAsync(async (req, res) => {
  * 
  * @route GET /api/v1/users/:id
  * @access Private - Admin, TTO Officer
- * @param {Object} req - Express request object
- * @param {string} req.params.id - User UUID
- * @param {Object} res - Express response object
- * @returns {Object} User object with roles
  */
 exports.findById = catchAsync(async (req, res) => {
     const user = await personRepository.findByIdWithDetails(req.params.id);
@@ -69,15 +63,18 @@ exports.findById = catchAsync(async (req, res) => {
  * 
  * @route GET /api/v1/users/search
  * @access Private - Admin, TTO Officer
- * @param {Object} req - Express request object
- * @param {string} req.query.q - Search query
- * @param {number} [req.query.limit=20] - Max results
- * @param {Object} res - Express response object
- * @returns {Object} Array of matching users
+ * @param {string} req.query.q - Search query (required, min 2 characters)
+ * @param {number} req.query.limit - Max results (optional, default 20)
+ * 
+ * @example
+ * GET /api/v1/users/search?q=Ncube
+ * GET /api/v1/users/search?q=john&limit=10
  */
 exports.search = catchAsync(async (req, res) => {
+    // IMPORTANT: Get search query from req.query, NOT req.params
     const { q, limit = 20 } = req.query;
     
+    // Validate search query
     if (!q || q.length < 2) {
         return res.status(400).json({
             success: false,
@@ -85,6 +82,7 @@ exports.search = catchAsync(async (req, res) => {
         });
     }
 
+    // Search for users using the search query string
     const results = await personRepository.search(q, parseInt(limit));
     
     res.json({
@@ -99,13 +97,10 @@ exports.search = catchAsync(async (req, res) => {
  * 
  * @route GET /api/v1/users/institute/:instituteId
  * @access Private - Admin, TTO Officer
- * @param {Object} req - Express request object
- * @param {string} req.params.instituteId - Institute UUID
- * @param {Object} res - Express response object
- * @returns {Object} Array of users in the institute
  */
 exports.findByInstitute = catchAsync(async (req, res) => {
-    const users = await personRepository.findByInstitute(req.params.instituteId);
+    const { instituteId } = req.params;
+    const users = await personRepository.findByInstitute(instituteId);
     
     res.json({
         success: true,
@@ -119,14 +114,10 @@ exports.findByInstitute = catchAsync(async (req, res) => {
  * 
  * @route POST /api/v1/users/:id/roles
  * @access Private - Admin only
- * @param {Object} req - Express request object
- * @param {string} req.params.id - User UUID
- * @param {string} req.body.roleName - Role name
- * @param {Object} res - Express response object
- * @returns {Object} Success message
  */
 exports.assignRole = catchAsync(async (req, res) => {
     const { roleName } = req.body;
+    const { id } = req.params;
     
     if (!roleName) {
         return res.status(400).json({
@@ -135,10 +126,10 @@ exports.assignRole = catchAsync(async (req, res) => {
         });
     }
 
-    await personRepository.assignRole(req.params.id, roleName);
+    await personRepository.assignRole(id, roleName);
     
     logger.logAudit('ROLE_ASSIGNED', req.user.person_id, {
-        targetUserId: req.params.id,
+        targetUserId: id,
         roleName
     });
 
@@ -153,23 +144,20 @@ exports.assignRole = catchAsync(async (req, res) => {
  * 
  * @route DELETE /api/v1/users/:id/roles/:roleName
  * @access Private - Admin only
- * @param {Object} req - Express request object
- * @param {string} req.params.id - User UUID
- * @param {string} req.params.roleName - Role name
- * @param {Object} res - Express response object
- * @returns {Object} Success message
  */
 exports.removeRole = catchAsync(async (req, res) => {
-    await personRepository.removeRole(req.params.id, req.params.roleName);
+    const { id, roleName } = req.params;
+    
+    await personRepository.removeRole(id, roleName);
     
     logger.logAudit('ROLE_REMOVED', req.user.person_id, {
-        targetUserId: req.params.id,
-        roleName: req.params.roleName
+        targetUserId: id,
+        roleName: roleName
     });
 
     res.json({
         success: true,
-        message: `Role '${req.params.roleName}' removed successfully`
+        message: `Role '${roleName}' removed successfully`
     });
 });
 
@@ -178,19 +166,15 @@ exports.removeRole = catchAsync(async (req, res) => {
  * 
  * @route POST /api/v1/users/:id/deactivate
  * @access Private - Admin only
- * @param {Object} req - Express request object
- * @param {string} req.params.id - User UUID
- * @param {string} req.body.reason - Deactivation reason
- * @param {Object} res - Express response object
- * @returns {Object} Success message
  */
 exports.deactivate = catchAsync(async (req, res) => {
+    const { id } = req.params;
     const { reason } = req.body;
     
-    await personRepository.deactivateUser(req.params.id, reason);
+    await personRepository.deactivateUser(id, reason);
     
     logger.logAudit('USER_DEACTIVATED', req.user.person_id, {
-        targetUserId: req.params.id,
+        targetUserId: id,
         reason
     });
 
@@ -205,16 +189,14 @@ exports.deactivate = catchAsync(async (req, res) => {
  * 
  * @route POST /api/v1/users/:id/reactivate
  * @access Private - Admin only
- * @param {Object} req - Express request object
- * @param {string} req.params.id - User UUID
- * @param {Object} res - Express response object
- * @returns {Object} Success message
  */
 exports.reactivate = catchAsync(async (req, res) => {
-    await personRepository.reactivateUser(req.params.id);
+    const { id } = req.params;
+    
+    await personRepository.reactivateUser(id);
     
     logger.logAudit('USER_REACTIVATED', req.user.person_id, {
-        targetUserId: req.params.id
+        targetUserId: id
     });
 
     res.json({
@@ -228,9 +210,6 @@ exports.reactivate = catchAsync(async (req, res) => {
  * 
  * @route GET /api/v1/users/statistics
  * @access Private - Admin, TTO Officer
- * @param {Object} req - Express request object
- * @param {Object} res - Express response object
- * @returns {Object} User statistics
  */
 exports.getStatistics = catchAsync(async (req, res) => {
     const stats = await personRepository.getStatistics();
@@ -244,21 +223,21 @@ exports.getStatistics = catchAsync(async (req, res) => {
 /**
  * Gets recently active users.
  * 
+ * Note: The persons table does NOT have a last_login column,
+ * so this endpoint returns an empty array with a message.
+ * 
  * @route GET /api/v1/users/active
  * @access Private - Admin, TTO Officer
- * @param {Object} req - Express request object
- * @param {number} [req.query.days=30] - Days to look back
- * @param {Object} res - Express response object
- * @returns {Object} Array of active users
  */
 exports.getActive = catchAsync(async (req, res) => {
     const days = parseInt(req.query.days) || 30;
-    const activeUsers = await personRepository.getRecentlyActive(days);
     
+    // The persons table does not have a last_login column
     res.json({
         success: true,
-        data: activeUsers,
-        count: activeUsers.length,
-        days: days
+        data: [],
+        count: 0,
+        days: days,
+        message: 'The persons table does not have a last_login column. This endpoint is currently disabled.'
     });
 });
