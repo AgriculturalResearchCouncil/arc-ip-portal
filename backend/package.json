@@ -12,7 +12,7 @@
     "format": "prettier --write src/**/*.js",
     "sharepoint:ids": "node src/scripts/get-sharepoint-ids.js",
     "sharepoint:test": "node src/scripts/test-sharepoint.js",
-    "sharepoint:sync": "node src/scripts/sync-sharepoint.js"
+    "sharepoint:cleanup": "node src/scripts/cleanup-sharepoint.js"
   },
   "dependencies": {
     "@azure/identity": "^4.2.1",
