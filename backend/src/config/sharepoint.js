@@ -40,8 +40,7 @@ module.exports = {
 
     /**
      * SharePoint Document Libraries
-     * Specific document libraries for different document types
-     * Note: We're using the same TTOPortalDocuments library for all types
+     * All document types use the same TTOPortalDocuments library
      * with folders inside for organization
      */
     libraries: {
