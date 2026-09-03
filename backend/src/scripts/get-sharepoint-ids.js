@@ -148,7 +148,9 @@ async function getSharePointIds() {
         // 4. Check for required libraries
         log.section('4. Checking Required Libraries');
 
+        // Update: Use TTOPortalDocuments as the primary library
         const requiredLibraries = [
+            'TTOPortalDocuments',  // Primary library for TTO Portal
             'IPDocuments',
             'Disclosures', 
             'Licences',
@@ -171,6 +173,14 @@ async function getSharePointIds() {
         // 5. Generate .env configuration
         log.section('5. Generated .env Configuration');
 
+        // Determine the primary drive ID (use TTOPortalDocuments if available, otherwise fallback)
+        const primaryDriveId = driveMap['TTOPortalDocuments']?.id || 
+                              driveMap['IPDocuments']?.id || 
+                              driveMap['Documents']?.id || 
+                              'your-drive-id';
+
+        const primaryLibraryName = driveMap['TTOPortalDocuments'] ? 'TTOPortalDocuments' : 'IPDocuments';
+
         console.log(`
 ${colors.bold}Copy these values to your .env file:${colors.reset}
 
@@ -179,9 +189,12 @@ SHAREPOINT_TENANT_ID=${process.env.SHAREPOINT_TENANT_ID}
 SHAREPOINT_CLIENT_ID=${process.env.SHAREPOINT_CLIENT_ID}
 SHAREPOINT_CLIENT_SECRET=${process.env.SHAREPOINT_CLIENT_SECRET}
 SHAREPOINT_SITE_ID=${siteId}
-SHAREPOINT_DRIVE_ID=${driveMap['IPDocuments']?.id || driveMap['Documents']?.id || 'your-drive-id'}
+SHAREPOINT_DRIVE_ID=${primaryDriveId}
 SHAREPOINT_SITE_URL=${SITE_URL}
 SHAREPOINT_BASE_URL=https://graph.microsoft.com/v1.0
+
+# TTO-Specific Library (Primary)
+SHAREPOINT_LIBRARY_NAME=${primaryLibraryName}
 
 # Document Library IDs (optional - for specific libraries)
 SHAREPOINT_IPDOCS_LIBRARY=${driveMap['IPDocuments']?.id || 'not-found'}
@@ -206,6 +219,9 @@ ${colors.bold}Site Information:${colors.reset}
 
 ${colors.bold}Document Libraries Found:${colors.reset}
   ${Object.keys(driveMap).join('\n  ')}
+
+${colors.bold}Primary Library:${colors.reset}
+  ${primaryLibraryName} (ID: ${primaryDriveId})
 
 ${colors.bold}Lists Found:${colors.reset}
   ${Object.keys(listMap).join('\n  ')}
