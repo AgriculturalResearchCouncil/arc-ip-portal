@@ -47,7 +47,7 @@ class SharePointClient {
         /** @property {string} siteId - SharePoint site ID */
         this.siteId = config.siteId;
         
-        /** @property {string} driveId - SharePoint document library drive ID */
+        /** @property {string} driveId - SharePoint document library drive ID (TTOPortalDocuments) */
         this.driveId = config.driveId;
         
         /** @property {string} clientId - SharePoint app client ID */
@@ -185,25 +185,31 @@ class SharePointClient {
      * Uses Microsoft Graph API's content upload endpoint.
      * 
      * @async
-     * @param {string} folderPath - SharePoint folder path
+     * @param {string} folderPath - SharePoint folder path (relative to the library root)
      * @param {string} fileName - File name
      * @param {Buffer} fileBuffer - File content as buffer
      * @param {Object} metadata - Optional file metadata
      * @returns {Promise<Object>} Uploaded file information
      * @throws {InternalServerError} If upload fails
+     * 
+     * @example
+     * // Upload to TTOPortalDocuments/IPAssets/123/test.txt
+     * await client.uploadFile('IPAssets/123', 'test.txt', buffer, { documentType: 'Test' });
      */
     async uploadFile(folderPath, fileName, fileBuffer, metadata = {}) {
         try {
             const client = await this.getClient();
             const driveId = this.driveId;
 
+            // The folderPath is relative to the library root (TTOPortalDocuments)
             const uploadPath = folderPath ? `${folderPath}/${fileName}` : fileName;
             const uploadUrl = `/drives/${driveId}/root:/${uploadPath}:/content`;
 
             logger.info('Uploading file to SharePoint', { 
                 folderPath, 
                 fileName, 
-                size: fileBuffer.length 
+                size: fileBuffer.length,
+                library: 'TTOPortalDocuments'
             });
 
             const response = await client.api(uploadUrl)
@@ -342,10 +348,14 @@ class SharePointClient {
      * Creates a new folder in SharePoint at the specified path.
      * 
      * @async
-     * @param {string} folderPath - Parent folder path
+     * @param {string} folderPath - Parent folder path (relative to library root)
      * @param {string} folderName - Folder name
      * @returns {Promise<Object>} Created folder information
      * @throws {InternalServerError} If folder creation fails
+     * 
+     * @example
+     * // Creates TTOPortalDocuments/IPAssets/123
+     * await client.createFolder('IPAssets', '123');
      */
     async createFolder(folderPath, folderName) {
         try {
@@ -355,7 +365,10 @@ class SharePointClient {
             const fullPath = folderPath ? `${folderPath}/${folderName}` : folderName;
             const folderUrl = `/drives/${driveId}/root:/${fullPath}`;
 
-            logger.info('Creating folder in SharePoint', { folderPath: fullPath });
+            logger.info('Creating folder in SharePoint', { 
+                folderPath: fullPath,
+                library: 'TTOPortalDocuments'
+            });
 
             const response = await client.api(folderUrl)
                 .put({
@@ -409,10 +422,14 @@ class SharePointClient {
      * Retrieves a list of files and folders from a SharePoint folder.
      * 
      * @async
-     * @param {string} folderPath - SharePoint folder path
+     * @param {string} folderPath - SharePoint folder path (relative to library root)
      * @param {number} limit - Maximum results (default: 100)
      * @returns {Promise<Array>} List of files and folders
      * @throws {InternalServerError} If listing fails
+     * 
+     * @example
+     * // Lists contents of TTOPortalDocuments/IPAssets
+     * await client.listFiles('IPAssets');
      */
     async listFiles(folderPath, limit = 100) {
         try {
@@ -439,6 +456,41 @@ class SharePointClient {
         } catch (error) {
             logger.error('Failed to list files from SharePoint:', error);
             throw new InternalServerError('Failed to list files from SharePoint');
+        }
+    }
+
+    /**
+     * Get SharePoint Drive Information
+     * 
+     * Retrieves information about the SharePoint drive/document library.
+     * 
+     * @async
+     * @returns {Promise<Object>} Drive information
+     * @throws {InternalServerError} If drive info retrieval fails
+     */
+    async getDriveInfo() {
+        try {
+            const client = await this.getClient();
+            const driveUrl = `/drives/${this.driveId}`;
+
+            const response = await client.api(driveUrl)
+                .select('id,name,description,webUrl,driveType,quota')
+                .get();
+
+            return {
+                id: response.id,
+                name: response.name,
+                description: response.description,
+                webUrl: response.webUrl,
+                driveType: response.driveType,
+                totalSize: response.quota?.total || 0,
+                usedSize: response.quota?.used || 0,
+                remainingSize: response.quota?.remaining || 0
+            };
+
+        } catch (error) {
+            logger.error('Failed to get drive info from SharePoint:', error);
+            throw new InternalServerError('Failed to get drive info from SharePoint');
         }
     }
 }
