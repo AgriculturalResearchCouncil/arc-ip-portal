@@ -1,4 +1,4 @@
-// backend/tests/unit/sharepoint.test.js
+// tests/unit/sharepoint.test.js
 /**
  * SharePoint Unit Tests
  * =====================
