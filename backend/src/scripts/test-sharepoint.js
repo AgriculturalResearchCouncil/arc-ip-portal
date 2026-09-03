@@ -1,4 +1,4 @@
-// backend/src/scripts/test-sharepoint.js
+// src/scripts/test-sharepoint.js
 /**
  * SharePoint Integration Test Script
  * ===================================
