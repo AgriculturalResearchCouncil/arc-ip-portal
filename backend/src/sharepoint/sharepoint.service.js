@@ -47,26 +47,41 @@ class SharePointService {
      */
     async getOrCreateFolder(entityType, entityId) {
         try {
-            // Get folder path template from configuration
-            const folderTemplate = config.folderStructure[entityType];
-            if (!folderTemplate) {
+            // Get folder structure from configuration
+            const folderConfig = config.folderStructure[entityType];
+            if (!folderConfig) {
                 throw new BadRequestError(`Unknown entity type: ${entityType}`);
             }
 
-            // Generate folder path by replacing entity ID placeholder
-            const folderPath = folderTemplate.replace('{' + entityType + 'Id}', entityId);
+            // Handle both string and object formats for folderStructure
+            let folderPath;
+            if (typeof folderConfig === 'object' && folderConfig.path) {
+                // New format: { library: 'ipDocs', path: 'IPAssets/{ipRecordId}' }
+                folderPath = folderConfig.path.replace(/{[^}]+}/g, entityId);
+            } else if (typeof folderConfig === 'string') {
+                // Legacy format: 'IPAssets/{ipRecordId}'
+                folderPath = folderConfig.replace(/{[^}]+}/g, entityId);
+            } else {
+                throw new Error(`Invalid folder configuration for entity type: ${entityType}`);
+            }
+
             const pathSegments = folderPath.split('/');
 
             // Check if folder already exists
             try {
-                const files = await sharepointClient.listFiles(pathSegments[0]);
-                const folderExists = files.some(f => f.name === pathSegments[1] && f.isFolder);
+                // Use the first segment as the parent folder (e.g., "IPAssets")
+                const parentPath = pathSegments[0];
+                const folderName = pathSegments[1] || entityId;
+                
+                const files = await sharepointClient.listFiles(parentPath);
+                const folderExists = files.some(f => f.name === folderName && f.isFolder);
 
                 if (folderExists) {
+                    logger.debug('Folder already exists', { entityType, entityId, folderPath });
                     return folderPath;
                 }
             } catch (error) {
-                // Folder doesn't exist, will create it
+                // Folder doesn't exist or parent doesn't exist, will create it
                 logger.debug('Folder does not exist, creating new folder', { 
                     entityType, 
                     entityId, 
@@ -75,7 +90,27 @@ class SharePointService {
             }
 
             // Create new folder
-            const folder = await sharepointClient.createFolder(pathSegments[0], pathSegments[1]);
+            // Create parent folder first if it doesn't exist, then create the child
+            const parentPath = pathSegments[0];
+            const folderName = pathSegments[1] || entityId;
+            
+            // Ensure the parent folder exists
+            try {
+                const parentFiles = await sharepointClient.listFiles('');
+                const parentExists = parentFiles.some(f => f.name === parentPath && f.isFolder);
+                
+                if (!parentExists) {
+                    // Create the parent folder (e.g., "IPAssets")
+                    await sharepointClient.createFolder('', parentPath);
+                    logger.info('Created parent folder', { parentPath });
+                }
+            } catch (error) {
+                // Parent might already exist, continue
+                logger.debug('Parent folder may already exist', { parentPath });
+            }
+
+            // Create the child folder
+            const folder = await sharepointClient.createFolder(parentPath, folderName);
             
             logger.info('SharePoint folder created', { 
                 entityType, 
@@ -151,7 +186,8 @@ class SharePointService {
                 entityType,
                 entityId,
                 fileName,
-                sharepointId: uploadResult.id
+                sharepointId: uploadResult.id,
+                library: config.documentLibrary || 'TTOPortalDocuments'
             });
 
             return {
@@ -194,7 +230,8 @@ class SharePointService {
                 entityType,
                 entityId,
                 sharepointId,
-                fileName: metadata.name
+                fileName: metadata.name,
+                library: config.documentLibrary || 'TTOPortalDocuments'
             });
 
             return {
@@ -236,7 +273,8 @@ class SharePointService {
             logger.info('Document deleted from SharePoint', {
                 entityType,
                 entityId,
-                sharepointId
+                sharepointId,
+                library: config.documentLibrary || 'TTOPortalDocuments'
             });
 
             return true;
@@ -262,14 +300,21 @@ class SharePointService {
      */
     async listDocuments(entityType, entityId, limit = 100) {
         try {
-            // Get folder path template
-            const folderTemplate = config.folderStructure[entityType];
-            if (!folderTemplate) {
+            // Get folder structure from configuration
+            const folderConfig = config.folderStructure[entityType];
+            if (!folderConfig) {
                 throw new BadRequestError(`Unknown entity type: ${entityType}`);
             }
 
-            // Generate folder path
-            const folderPath = folderTemplate.replace('{' + entityType + 'Id}', entityId);
+            // Handle both string and object formats
+            let folderPath;
+            if (typeof folderConfig === 'object' && folderConfig.path) {
+                folderPath = folderConfig.path.replace(/{[^}]+}/g, entityId);
+            } else if (typeof folderConfig === 'string') {
+                folderPath = folderConfig.replace(/{[^}]+}/g, entityId);
+            } else {
+                throw new Error(`Invalid folder configuration for entity type: ${entityType}`);
+            }
 
             // List files from SharePoint
             const files = await sharepointClient.listFiles(folderPath, limit);
@@ -366,6 +411,10 @@ class SharePointService {
     async updateDocumentMetadata(sharepointId, metadata) {
         try {
             const result = await sharepointClient.updateFileMetadata(sharepointId, metadata);
+            logger.info('Document metadata updated in SharePoint', { 
+                sharepointId, 
+                metadata 
+            });
             return result;
         } catch (error) {
             logger.error('Failed to update document metadata in SharePoint:', error);
