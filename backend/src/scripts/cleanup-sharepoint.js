@@ -1,4 +1,4 @@
-// backend/src/scripts/cleanup-sharepoint.js
+// src/scripts/cleanup-sharepoint.js
 /**
  * SharePoint Cleanup Script
  * Removes test data from SharePoint
