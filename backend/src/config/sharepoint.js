@@ -31,31 +31,36 @@ module.exports = {
     driveId: config.sharepoint.driveId,
     baseUrl: config.sharepoint.baseUrl || 'https://graph.microsoft.com/v1.0',
     siteUrl: config.sharepoint.siteUrl || 'https://arcagricza2.sharepoint.com/sites/DevOTT',
-    documentLibrary: config.sharepoint.libraryName || 'IPDocuments',
+    
+    /**
+     * TTO-Specific Document Library
+     * Using TTOPortalDocuments for isolation from other apps
+     */
+    documentLibrary: config.sharepoint.libraryName || 'TTOPortalDocuments',
 
     /**
      * SharePoint Document Libraries
      * Specific document libraries for different document types
+     * Note: We're using the same TTOPortalDocuments library for all types
+     * with folders inside for organization
      */
     libraries: {
-        ipDocs: config.sharepoint.ipDocsLibrary || 'IPDocuments',
-        disclosures: config.sharepoint.disclosuresLibrary || 'Disclosures',
-        licences: config.sharepoint.licencesLibrary || 'Licences',
-        patents: config.sharepoint.patentsLibrary || 'Patents',
-        pbr: config.sharepoint.pbrLibrary || 'PBR',
-        trademarks: config.sharepoint.trademarksLibrary || 'Trademarks',
-        commercialisation: config.sharepoint.commercialisationLibrary || 'Commercialisation'
+        ipDocs: config.sharepoint.libraryName || 'TTOPortalDocuments',
+        disclosures: config.sharepoint.libraryName || 'TTOPortalDocuments',
+        licences: config.sharepoint.libraryName || 'TTOPortalDocuments',
+        patents: config.sharepoint.libraryName || 'TTOPortalDocuments',
+        pbr: config.sharepoint.libraryName || 'TTOPortalDocuments',
+        trademarks: config.sharepoint.libraryName || 'TTOPortalDocuments',
+        commercialisation: config.sharepoint.libraryName || 'TTOPortalDocuments'
     },
 
     /**
      * Folder Structure Mapping
-     * Defines the folder hierarchy for different entity types in SharePoint.
+     * Defines the folder hierarchy for different entity types inside TTOPortalDocuments.
      * The {entityId} placeholder will be replaced with the actual record ID.
      * 
      * Example: For IP Record ID "123e4567-e89b-12d3-a456-426614174000",
-     * the folder path will be "IPDocuments/IPAssets/123e4567-e89b-12d3-a456-426614174000"
-     * 
-     * Each entity type maps to its corresponding document library
+     * the folder path will be "IPAssets/123e4567-e89b-12d3-a456-426614174000"
      */
     folderStructure: {
         ipAssets: {
@@ -207,7 +212,7 @@ module.exports = {
      */
     sync: {
         enabled: process.env.ENABLE_SHAREPOINT_SYNC === 'true',
-        interval: parseInt(process.env.SHAREPOINT_SYNC_INTERVAL) || 300000, // 5 minutes
+        interval: parseInt(process.env.SHAREPOINT_SYNC_INTERVAL) || 300000,
         batchSize: parseInt(process.env.SHAREPOINT_SYNC_BATCH) || 100,
         retryOnFailure: true,
         syncFields: {
@@ -236,7 +241,7 @@ module.exports = {
  * 
  * @example
  * const path = sharepointConfig.getSharePointPath('ipAssets', '123');
- * // Returns: { library: 'IPDocuments', path: 'IPAssets/123' }
+ * // Returns: { library: 'TTOPortalDocuments', path: 'IPAssets/123' }
  */
 module.exports.getSharePointPath = (entityType, entityId) => {
     const structure = module.exports.folderStructure[entityType];
