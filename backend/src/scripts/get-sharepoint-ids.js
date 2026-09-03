@@ -1,4 +1,4 @@
-// backend/src/scripts/get-sharepoint-ids.js
+// src/scripts/get-sharepoint-ids.js
 /**
  * SharePoint ID Retrieval Script
  * ==============================
@@ -148,7 +148,7 @@ async function getSharePointIds() {
         // 4. Check for required libraries
         log.section('4. Checking Required Libraries');
 
-        // Update: Use TTOPortalDocuments as the primary library
+        // TTOPortalDocuments is the primary library for Option 2
         const requiredLibraries = [
             'TTOPortalDocuments',  // Primary library for TTO Portal
             'IPDocuments',
@@ -173,7 +173,7 @@ async function getSharePointIds() {
         // 5. Generate .env configuration
         log.section('5. Generated .env Configuration');
 
-        // Determine the primary drive ID (use TTOPortalDocuments if available, otherwise fallback)
+        // Determine the primary drive ID (use TTOPortalDocuments if available)
         const primaryDriveId = driveMap['TTOPortalDocuments']?.id || 
                               driveMap['IPDocuments']?.id || 
                               driveMap['Documents']?.id || 
