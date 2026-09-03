@@ -205,133 +205,297 @@ Authentication is integrated with the ARC Centralized Authentication Service and
 
 ---
 
-## SharePoint Integration Guide
+# SharePoint Integration Guide
 
-### Architecture: "Portal as Coordinator"
+## Architecture: Portal as Coordinator
 
 ```text
 ┌─────────────────────────────────────────────────────┐
-│              ARC IP Portal Backend                   │
+│                 ARC IP Portal Backend               │
+│                                                     │
 │  ┌─────────────────────────────────────────────┐    │
-│  │            Document Service                  │    │
-│  │  - Orchestrates document operations         │    │
-│  │  - Manages metadata in database             │    │
-│  │  - Coordinates with SharePoint              │    │
+│  │              Document Service               │    │
+│  │  • Orchestrates document operations         │    │
+│  │  • Manages metadata in database             │    │
+│  │  • Coordinates SharePoint interactions      │    │
 │  └──────────────────┬──────────────────────────┘    │
 │                     │                               │
 │  ┌──────────────────▼──────────────────────────┐    │
-│  │           SharePoint Service                 │    │
-│  │  - Authenticates with Microsoft Graph API   │    │
-│  │  - Uploads/downloads files                  │    │
-│  │  - Creates folders and metadata             │    │
-│  │  - Handles retry logic                      │    │
+│  │             SharePoint Service              │    │
+│  │  • Authenticates via Microsoft Graph API    │    │
+│  │  • Uploads and downloads files              │    │
+│  │  • Creates folders and metadata             │    │
+│  │  • Handles retry and error logic            │    │
 │  └──────────────────┬──────────────────────────┘    │
 └─────────────────────┼───────────────────────────────┘
+                      │
                       │ Microsoft Graph API
                       │ (OAuth2 Client Credentials)
                       ▼
 ┌─────────────────────────────────────────────────────┐
-│            SharePoint Online / On-Prem              │
+│          SharePoint Online (DevOTT Site)           │
+│                                                     │
 │  ┌─────────────────────────────────────────────┐    │
-│  │        SharePoint Document Library          │    │
-│  │  - IPAssets/{ipRecordId}/                   │    │
-│  │  - Disclosures/{disclosureId}/              │    │
-│  │  - Licences/{licenceId}/                    │    │
-│  │  - Patents/{patentId}/                      │    │
+│  │         TTOPortalDocuments Library          │    │
+│  │                                             │    │
+│  │  IPAssets/{ipRecordId}/                     │    │
+│  │  Disclosures/{disclosureId}/                │    │
+│  │  Licences/{licenceId}/                      │    │
+│  │  Patents/{patentId}/                        │    │
+│  │  PBR/{pbrId}/                               │    │
+│  │  Trademarks/{trademarkId}/                  │    │
+│  │  Commercialisation/{commercialisationId}/   │    │
 │  └─────────────────────────────────────────────┘    │
 └─────────────────────────────────────────────────────┘
 ```
 
-### SharePoint Configuration
+---
 
-Your SharePoint site:
-- **URL:** `https://arcagricza2.sharepoint.com/sites/DevOTT`
-- **Type:** Development OTT Site
-- **Library:** IPDocuments (Default document library)
+## SharePoint Configuration
 
-### SharePoint Files
+### SharePoint Site
+
+- **Site URL:** `https://arcagricza2.sharepoint.com/sites/DevOTT`
+- **Site Type:** Development OTT Site
+- **Document Library:** `TTOPortalDocuments`
+- **Storage Strategy:** Dedicated library for ARC TTO Portal documents
+
+### Why Use a Dedicated Library?
+
+The `DevOTT` SharePoint site is shared by multiple applications. Creating and using a dedicated document library (`TTOPortalDocuments`) provides:
+
+- Logical separation of TTO Portal documents
+- Prevention of naming conflicts with other applications
+- Easier administration and permission management
+- Cleaner backup and migration processes
+- Improved governance and auditability
+
+---
+
+## SharePoint Library Structure
+
+The portal stores documents inside a single SharePoint document library:
+
+```text
+TTOPortalDocuments/
+│
+├── IPAssets/
+├── Disclosures/
+├── Licences/
+├── Patents/
+├── PBR/
+├── Trademarks/
+└── Commercialisation/
+```
+
+### Folder Purposes
+
+| Folder | Purpose |
+|----------|----------|
+| IPAssets | IP asset documents |
+| Disclosures | Innovation disclosure submissions |
+| Licences | Licensing agreements and related documents |
+| Patents | Patent documentation |
+| PBR | Plant Breeders' Rights documentation |
+| Trademarks | Trademark registrations and related assets |
+| Commercialisation | Commercialisation and technology transfer documents |
+
+---
+
+## SharePoint Integration Files
 
 | File | Purpose |
-|------|---------|
+|--------|----------|
 | `src/config/sharepoint.js` | SharePoint configuration |
 | `src/sharepoint/sharepoint.client.js` | Microsoft Graph API client |
-| `src/sharepoint/sharepoint.service.js` | SharePoint orchestration |
+| `src/sharepoint/sharepoint.service.js` | SharePoint orchestration and file operations |
 | `src/services/document.service.js` | Document business logic |
 | `src/database/repositories/document.repository.js` | Document database operations |
-| `src/scripts/get-sharepoint-ids.js` | Get SharePoint site/drive IDs |
-| `src/scripts/test-sharepoint.js` | Test SharePoint connectivity |
+| `src/scripts/get-sharepoint-ids.js` | Retrieves SharePoint site and library IDs |
+| `src/scripts/test-sharepoint.js` | Tests SharePoint connectivity |
+| `src/scripts/cleanup-sharepoint.js` | Removes test data from SharePoint |
 
-### Getting SharePoint IDs
+---
+
+## Retrieving SharePoint IDs
+
+Run the following script from the backend root directory:
 
 ```bash
-# From the backend directory
 npm run sharepoint:ids
+```
 
-# Or directly
+Or directly:
+
+```bash
 node src/scripts/get-sharepoint-ids.js
 ```
 
-### Required Document Libraries
+This script retrieves:
 
-Create these libraries in your SharePoint site:
+- SharePoint Site ID
+- Document Library (Drive) ID
+- Site Metadata
 
-- IPDocuments (Main storage)
-- Disclosures
-- Licences
-- Patents
-- PBR
-- Trademarks
-- Commercialisation
+---
 
-### Azure AD App Registration
+## Required Document Library
 
-1. Register an app in Azure AD
-2. Configure API permissions:
-   - `Sites.ReadWrite.All` (Application)
-   - `Files.ReadWrite.All` (Application)
-3. Grant admin consent
-4. Create a client secret
+Create the following document library in SharePoint:
 
-### SharePoint Environment Variables
+```text
+TTOPortalDocuments
+```
 
-Add these values to `backend/.env`:
+> The application automatically creates and manages folders within the library as required.
+
+---
+
+## Azure AD App Registration
+
+### 1. Register an Application
+
+Create a new App Registration in Azure Active Directory.
+
+### 2. Configure Microsoft Graph Permissions
+
+Add the following **Application Permissions**:
+
+| Permission | Type | Purpose |
+|------------|------|----------|
+| `Sites.ReadWrite.All` | Application | Read and manage SharePoint site content |
+| `Files.ReadWrite.All` | Application | Read and manage files within SharePoint libraries |
+
+### 3. Grant Admin Consent
+
+A Microsoft 365 tenant administrator must grant consent for the permissions above.
+
+### 4. Create Client Secret
+
+Generate and securely store a client secret for backend authentication.
+
+---
+
+## Environment Configuration
+
+Add the following values to:
+
+```text
+backend/.env
+```
 
 ```env
+# Azure AD Application Registration
 SHAREPOINT_TENANT_ID=your-tenant-id
 SHAREPOINT_CLIENT_ID=your-client-id
 SHAREPOINT_CLIENT_SECRET=your-client-secret
-SHAREPOINT_SITE_ID=your-site-id-from-script
-SHAREPOINT_DRIVE_ID=your-drive-id-from-script
+
+# SharePoint Site Information
 SHAREPOINT_SITE_URL=https://arcagricza2.sharepoint.com/sites/DevOTT
+SHAREPOINT_SITE_ID=arcagricza2.sharepoint.com,4a041426-ffcf-4385-babe-3c0f2a31f458,65b8738e-52e0-47c7-9f0f-20001e833446
+SHAREPOINT_DRIVE_ID=cec53d30-0f9f-4d5e-9cba-5ada6ad234c8
+
+# Microsoft Graph Configuration
 SHAREPOINT_BASE_URL=https://graph.microsoft.com/v1.0
-SHAREPOINT_LIBRARY_NAME=IPDocuments
+
+# TTO Portal Library
+SHAREPOINT_LIBRARY_NAME=TTOPortalDocuments
+
+# Feature Flag
 ENABLE_SHAREPOINT=true
 ```
 
-### SharePoint API Permissions
+---
 
-| Permission | Type | Purpose |
-|------------|------|---------|
-| `Sites.ReadWrite.All` | Application | Read and write SharePoint sites and content |
-| `Files.ReadWrite.All` | Application | Read and write files in document libraries |
+## Testing the Integration
 
-Both permissions require tenant administrator consent. Grant consent from the Azure AD app registration before testing the integration.
+### Retrieve Site and Drive IDs
 
-### SharePoint Troubleshooting
+```bash
+npm run sharepoint:ids
+```
 
-| Symptom | Likely cause | Resolution |
-|---------|--------------|------------|
-| Authentication failed | Invalid tenant, client, or secret | Check the SharePoint environment variables and secret expiry |
-| Site not found | Incorrect site URL or ID | Verify the DevOTT site URL and rerun `npm run sharepoint:ids` |
-| Library not found | Required library does not exist | Create the libraries listed above and verify their names |
-| Permission denied | Admin consent is missing | Grant the required Microsoft Graph application permissions |
-| Upload failed | File is too large or unsupported | Check the configured file size and MIME type limits |
-
-Test the connection from the backend directory:
+### Execute Connectivity Tests
 
 ```bash
 npm run sharepoint:test
 ```
+
+### Run Unit Tests
+
+```bash
+npm test -- --testPathPattern=sharepoint.test
+```
+
+### Run Integration Tests
+
+```bash
+npm test -- --testPathPattern=sharepoint.integration
+```
+
+### Clean Up Test Data
+
+```bash
+node src/scripts/cleanup-sharepoint.js <test-id>
+```
+
+---
+
+## SharePoint Troubleshooting
+
+| Symptom | Likely Cause | Resolution |
+|----------|-------------|------------|
+| Authentication failed | Invalid tenant ID, client ID, or secret | Verify `.env` values and ensure client secret is active |
+| Site not found | Incorrect SharePoint URL or Site ID | Verify the DevOTT URL and rerun `npm run sharepoint:ids` |
+| Library not found | `TTOPortalDocuments` does not exist | Create the document library in SharePoint |
+| Permission denied | Required permissions not consented | Grant Microsoft Graph application permissions and admin consent |
+| Upload failed | File exceeds configured limits | Verify file size and MIME type restrictions |
+| Empty drives response | Graph permissions not configured correctly | Ensure `Sites.ReadWrite.All` is granted and consented |
+
+---
+
+## Recommended SharePoint Folder Naming Convention
+
+The portal should create folders using entity identifiers to ensure uniqueness:
+
+```text
+TTOPortalDocuments/
+│
+├── IPAssets/{ipRecordId}/
+├── Disclosures/{disclosureId}/
+├── Licences/{licenceId}/
+├── Patents/{patentId}/
+├── PBR/{pbrId}/
+├── Trademarks/{trademarkId}/
+└── Commercialisation/{commercialisationId}/
+```
+
+Example:
+
+```text
+TTOPortalDocuments/
+└── Patents/
+    └── 84/
+        ├── PatentApplication.pdf
+        ├── PriorArtReview.docx
+        └── AttorneyCorrespondence.pdf
+```
+
+---
+
+## Implementation Summary
+
+The ARC IP Portal uses a **Portal as Coordinator** architecture in which:
+
+1. The **Document Service** manages business rules and document metadata.
+2. The **SharePoint Service** handles all SharePoint communication.
+3. Documents are stored in the dedicated **TTOPortalDocuments** SharePoint library.
+4. Microsoft Graph API is used with **OAuth2 Client Credentials Flow**.
+5. Metadata remains within the ARC IP Portal database while document binaries are stored in SharePoint.
+
+This design provides a scalable, secure, and maintainable document management solution while leveraging the existing SharePoint infrastructure at:
+
+`https://arcagricza2.sharepoint.com/sites/DevOTT`
 
 ---
 
