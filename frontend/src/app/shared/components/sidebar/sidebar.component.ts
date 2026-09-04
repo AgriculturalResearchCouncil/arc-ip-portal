@@ -121,7 +121,7 @@ export class SidebarComponent implements OnInit {
     },
     {
       label: 'User Management',
-      url: '/admin/users',
+      url: '/admin',
       icon: 'people-outline'
     }
   ];
