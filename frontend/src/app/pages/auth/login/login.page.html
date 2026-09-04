@@ -1,0 +1,51 @@
+<ion-content class="login-content">
+  <div class="login-container">
+    <ion-card class="login-card">
+      <div class="login-header">
+        <div class="login-logo">ARC</div>
+        <h1 class="login-title">ARC IP Portal</h1>
+        <p class="login-subtitle">Intellectual Property Management</p>
+      </div>
+
+      <ion-card-content>
+        <form (ngSubmit)="onSubmit()">
+          <ion-item>
+            <ion-label position="floating">Username</ion-label>
+            <ion-input
+              type="text"
+              [(ngModel)]="username"
+              name="username"
+              required
+              placeholder="Enter your username"
+            ></ion-input>
+          </ion-item>
+
+          <ion-item>
+            <ion-label position="floating">Password</ion-label>
+            <ion-input
+              type="password"
+              [(ngModel)]="password"
+              name="password"
+              required
+              placeholder="Enter your password"
+            ></ion-input>
+          </ion-item>
+
+          <ion-text color="danger" *ngIf="error">
+            <p class="error-text">{{ error }}</p>
+          </ion-text>
+
+          <ion-button
+            type="submit"
+            expand="block"
+            [disabled]="isLoading"
+            class="login-button"
+          >
+            <ion-spinner *ngIf="isLoading" name="crescent"></ion-spinner>
+            <span *ngIf="!isLoading">Login</span>
+          </ion-button>
+        </form>
+      </ion-card-content>
+    </ion-card>
+  </div>
+</ion-content>

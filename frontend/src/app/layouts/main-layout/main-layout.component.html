@@ -1,0 +1,29 @@
+<ion-split-pane
+  contentId="main-content"
+  when="(min-width: 769px)">
+
+  <!-- SIDEBAR MENU -->
+  <ion-menu
+    menuId="main-menu"
+    contentId="main-content"
+    type="overlay">
+
+    <app-sidebar></app-sidebar>
+
+  </ion-menu>
+
+
+  <!-- MAIN APPLICATION -->
+  <div
+    id="main-content"
+    class="main-application">
+
+    <app-header></app-header>
+
+    <main class="main-content-wrapper">
+      <router-outlet></router-outlet>
+    </main>
+
+  </div>
+
+</ion-split-pane>

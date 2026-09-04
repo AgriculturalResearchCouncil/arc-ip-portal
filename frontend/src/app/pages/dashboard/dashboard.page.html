@@ -1,0 +1,229 @@
+<ion-content>
+  <div class="page-container">
+    <!-- PAGE HEADER -->
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Dashboard</h1>
+        <p class="page-subtitle">Overview of ARC Intellectual Property activities and portfolio performance</p>
+      </div>
+      <div class="page-actions">
+        <ion-button fill="outline" (click)="refresh()">
+          <ion-icon slot="start" name="refresh-outline"></ion-icon>
+          Refresh
+        </ion-button>
+        <ion-button color="primary" routerLink="/disclosures/new">
+          <ion-icon slot="start" name="add-outline"></ion-icon>
+          New Disclosure
+        </ion-button>
+      </div>
+    </div>
+
+    <!-- LOADING -->
+    <div *ngIf="isLoading" class="loading-container">
+      <ion-spinner name="crescent"></ion-spinner>
+      <p>Loading dashboard...</p>
+    </div>
+
+    <!-- ERROR -->
+    <div *ngIf="error" class="error-container">
+      <ion-icon name="alert-circle-outline"></ion-icon>
+      <h3>Error Loading Dashboard</h3>
+      <p>{{ error }}</p>
+      <ion-button (click)="refresh()">Try Again</ion-button>
+    </div>
+
+    <!-- DASHBOARD CONTENT -->
+    <ng-container *ngIf="!isLoading && !error">
+
+      <!-- STATISTICS -->
+      <div class="stats-grid">
+        <ion-card class="stat-card" *ngFor="let stat of stats">
+          <ion-card-content>
+            <div class="stat-header">
+              <div class="stat-icon" [ngClass]="stat.type">
+                <ion-icon [name]="stat.icon"></ion-icon>
+              </div>
+              <span class="stat-title">{{ stat.label }}</span>
+            </div>
+            <div class="stat-value">{{ stat.value }}</div>
+            <div class="stat-footer" *ngIf="stat.change">
+              <span>{{ stat.change }}</span>
+            </div>
+          </ion-card-content>
+        </ion-card>
+      </div>
+
+      <!-- IP BREAKDOWN & QUICK ACTIONS -->
+      <div class="dashboard-grid">
+        <!-- IP Breakdown -->
+        <ion-card>
+          <ion-card-header>
+            <ion-card-title>IP Portfolio Breakdown</ion-card-title>
+            <ion-card-subtitle>Distribution by IP type</ion-card-subtitle>
+          </ion-card-header>
+          <ion-card-content>
+            <div class="breakdown-list" *ngIf="ipBreakdown && ipBreakdown.length > 0">
+              <div class="breakdown-item" *ngFor="let item of ipBreakdown">
+                <span class="breakdown-label">{{ item.type }}</span>
+                <div class="breakdown-bar-container">
+                  <div class="breakdown-bar" [style.width.%]="item.percentage"></div>
+                </div>
+                <span class="breakdown-count">{{ item.count }}</span>
+              </div>
+            </div>
+            <div class="empty-state" *ngIf="!ipBreakdown || ipBreakdown.length === 0">
+              <ion-icon name="bar-chart-outline"></ion-icon>
+              <p>No IP breakdown data available</p>
+            </div>
+          </ion-card-content>
+        </ion-card>
+
+        <!-- Quick Actions -->
+        <ion-card>
+          <ion-card-header>
+            <ion-card-title>Quick Actions</ion-card-title>
+            <ion-card-subtitle>Common tasks and navigation</ion-card-subtitle>
+          </ion-card-header>
+          <ion-card-content>
+            <div class="quick-actions-list">
+              <ion-item button routerLink="/disclosures/new" detail="false">
+                <ion-icon name="document-text-outline" slot="start" color="primary"></ion-icon>
+                <ion-label>
+                  <h3>Submit Disclosure</h3>
+                  <p>Register a new invention disclosure</p>
+                </ion-label>
+                <ion-icon name="arrow-forward-outline" slot="end" color="medium"></ion-icon>
+              </ion-item>
+              <ion-item button routerLink="/ip-assets" detail="false">
+                <ion-icon name="folder-open-outline" slot="start" color="success"></ion-icon>
+                <ion-label>
+                  <h3>View IP Assets</h3>
+                  <p>Manage intellectual property portfolio</p>
+                </ion-label>
+                <ion-icon name="arrow-forward-outline" slot="end" color="medium"></ion-icon>
+              </ion-item>
+              <ion-item button routerLink="/licences" detail="false">
+                <ion-icon name="document-text-outline" slot="start" color="tertiary"></ion-icon>
+                <ion-label>
+                  <h3>Manage Licences</h3>
+                  <p>View and manage licensing agreements</p>
+                </ion-label>
+                <ion-icon name="arrow-forward-outline" slot="end" color="medium"></ion-icon>
+              </ion-item>
+              <ion-item button routerLink="/reports/executive" detail="false">
+                <ion-icon name="bar-chart-outline" slot="start" color="gold"></ion-icon>
+                <ion-label>
+                  <h3>View Reports</h3>
+                  <p>Portfolio and performance reports</p>
+                </ion-label>
+                <ion-icon name="arrow-forward-outline" slot="end" color="medium"></ion-icon>
+              </ion-item>
+            </div>
+          </ion-card-content>
+        </ion-card>
+      </div>
+
+      <!-- PENDING TASKS & EXPIRING ITEMS -->
+      <div class="dashboard-grid">
+        <!-- Pending Tasks -->
+        <ion-card>
+          <ion-card-header>
+            <ion-card-title>
+              <ion-icon name="clipboard-outline" color="primary"></ion-icon>
+              Pending Tasks
+            </ion-card-title>
+            <ion-card-subtitle>Tasks awaiting your attention</ion-card-subtitle>
+          </ion-card-header>
+          <ion-card-content>
+            <div class="task-list" *ngIf="pendingTasks && pendingTasks.length > 0">
+              <div class="task-item" *ngFor="let task of pendingTasks">
+                <div class="task-priority">
+                  <ion-badge [color]="getPriorityColor(task.priority)">
+                    <ion-icon [name]="getPriorityIcon(task.priority)" size="small"></ion-icon>
+                    {{ task.priority }}
+                  </ion-badge>
+                </div>
+                <div class="task-content">
+                  <h4>{{ task.title }}</h4>
+                  <p>{{ task.description }}</p>
+                  <div class="task-meta">
+                    <span>
+                      <ion-icon name="calendar-outline" size="small"></ion-icon>
+                      {{ task.dueDate | date:'MMM d, yyyy' }}
+                    </span>
+                    <span *ngIf="task.assignedTo">
+                      <ion-icon name="person-outline" size="small"></ion-icon>
+                      {{ task.assignedTo }}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="empty-state" *ngIf="!pendingTasks || pendingTasks.length === 0">
+              <ion-icon name="checkmark-done-circle-outline" color="success"></ion-icon>
+              <p>No pending tasks. Great job!</p>
+            </div>
+          </ion-card-content>
+        </ion-card>
+
+        <!-- Expiring Items -->
+        <ion-card>
+          <ion-card-header>
+            <ion-card-title>
+              <ion-icon name="warning-outline" color="warning"></ion-icon>
+              Expiring Soon
+            </ion-card-title>
+            <ion-card-subtitle>Items requiring attention</ion-card-subtitle>
+          </ion-card-header>
+          <ion-card-content>
+            <div class="expiring-list" *ngIf="expiringItems && expiringItems.length > 0">
+              <div class="expiring-item" *ngFor="let item of expiringItems">
+                <div class="expiring-info">
+                  <h4>{{ item.title }}</h4>
+                  <p>{{ item.type }}</p>
+                </div>
+                <div class="expiring-status">
+                  <ion-badge [color]="getExpiryStatus(item.daysRemaining)">
+                    {{ item.daysRemaining }} days left
+                  </ion-badge>
+                </div>
+              </div>
+            </div>
+            <div class="empty-state" *ngIf="!expiringItems || expiringItems.length === 0">
+              <ion-icon name="checkmark-circle-outline" color="success"></ion-icon>
+              <p>No expiring items</p>
+            </div>
+          </ion-card-content>
+        </ion-card>
+      </div>
+
+      <!-- RECENT ACTIVITY -->
+      <div class="section-heading">
+        <h2>Recent Activity</h2>
+        <span class="view-all" (click)="refresh()">Refresh</span>
+      </div>
+
+      <ion-card>
+        <ion-card-content>
+          <div class="activity-list" *ngIf="recentActivities && recentActivities.length > 0">
+            <div class="activity-item" *ngFor="let activity of recentActivities">
+              <div class="activity-icon primary">
+                <ion-icon [name]="getActivityIcon(activity.action)"></ion-icon>
+              </div>
+              <div class="activity-content">
+                <h4>{{ activity.action }} - {{ activity.entityType }}</h4>
+                <p>{{ activity.description }}</p>
+                <span>{{ activity.timestamp | date:'MMM d, yyyy h:mm a' }}</span>
+              </div>
+            </div>
+          </div>
+          <div class="empty-state" *ngIf="!recentActivities || recentActivities.length === 0">
+            <ion-icon name="file-tray-full-outline"></ion-icon>
+            <p>No recent activity</p>
+          </div>
+        </ion-card-content>
+      </ion-card>
+
+    </ng-container>
+  </div>
+</ion-content>

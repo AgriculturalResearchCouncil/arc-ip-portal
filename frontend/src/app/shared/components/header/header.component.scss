@@ -1,0 +1,120 @@
+.app-header {
+  border-bottom: 1px solid var(--app-border);
+  background: var(--app-surface);
+}
+
+.app-header ion-toolbar {
+  --background: var(--app-surface);
+  --min-height: 76px;
+  --padding-start: var(--app-spacing-lg);
+  --padding-end: var(--app-spacing-lg);
+  --border-color: transparent;
+}
+
+.header-search {
+  display: flex;
+  align-items: center;
+  gap: var(--app-spacing-sm);
+  width: 360px;
+  margin-left: var(--app-spacing-sm);
+  padding: 10px 14px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-sm);
+  background: var(--app-background-secondary);
+  transition: all var(--app-transition-fast);
+}
+
+.header-search:focus-within {
+  border-color: var(--ion-color-primary);
+  box-shadow: 0 0 0 3px rgba(0, 93, 40, 0.1);
+}
+
+.header-search ion-icon {
+  flex-shrink: 0;
+  color: var(--app-text-muted);
+  font-size: 18px;
+}
+
+.header-search input {
+  width: 100%;
+  padding: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--app-text);
+  font-size: var(--app-font-size-md);
+  font-family: var(--app-font-family);
+}
+
+.header-search input::placeholder {
+  color: var(--app-text-muted);
+}
+
+.header-action {
+  --color: var(--app-text-secondary);
+  --padding-start: 8px;
+  --padding-end: 8px;
+}
+
+.header-action:hover {
+  --color: var(--ion-color-primary);
+}
+
+.header-action ion-icon {
+  font-size: 22px;
+}
+
+.profile-button {
+  margin-left: 6px;
+  --padding-start: 4px;
+  --padding-end: 4px;
+}
+
+.header-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--ion-color-primary);
+  color: var(--app-text-light);
+  font-size: var(--app-font-size-sm);
+  font-weight: 700;
+  transition: all var(--app-transition-fast);
+}
+
+.profile-button:hover .header-avatar {
+  transform: scale(1.05);
+  box-shadow: 0 0 0 3px rgba(0, 93, 40, 0.2);
+}
+
+@media (min-width: 769px) {
+  ion-menu-button {
+    display: none;
+  }
+}
+
+@media (max-width: 992px) {
+  .header-search {
+    width: 250px;
+  }
+}
+
+@media (max-width: 768px) {
+  .app-header ion-toolbar {
+    --padding-start: var(--app-spacing-md);
+    --padding-end: var(--app-spacing-md);
+    --min-height: 64px;
+  }
+
+  .header-search {
+    display: none;
+  }
+
+  .header-avatar {
+    width: 34px;
+    height: 34px;
+    font-size: var(--app-font-size-xs);
+  }
+}

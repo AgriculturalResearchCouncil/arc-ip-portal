@@ -1,0 +1,318 @@
+/* =========================
+   HOST
+   ========================= */
+
+:host {
+  display: block;
+
+  width: 100%;
+  height: 100%;
+}
+
+
+/* =========================
+   SIDEBAR CONTAINER
+   ========================= */
+
+.sidebar-container {
+  display: flex;
+  flex-direction: column;
+
+  width: 100%;
+  height: 100%;
+
+  overflow: hidden;
+
+  background: #ffffff;
+}
+
+
+/* =========================
+   BRAND
+   ========================= */
+
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+
+  gap: 12px;
+
+  height: 76px;
+
+  padding: 0 20px;
+
+  flex-shrink: 0;
+
+  background: #ffffff;
+
+  border-bottom: 1px solid var(--app-border, #e5e7eb);
+}
+
+
+.brand-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  flex-shrink: 0;
+
+  width: 42px;
+  height: 42px;
+
+  border-radius: 10px;
+
+  background: var(--ion-color-primary);
+
+  color: #ffffff;
+
+  font-size: 13px;
+  font-weight: 700;
+
+  letter-spacing: 0.5px;
+}
+
+
+.brand-text {
+  display: flex;
+  flex-direction: column;
+
+  min-width: 0;
+}
+
+
+.brand-title {
+  overflow: hidden;
+
+  color: var(--app-text, #1f2937);
+
+  font-size: 16px;
+  font-weight: 700;
+
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+
+.brand-subtitle {
+  margin-top: 2px;
+
+  overflow: hidden;
+
+  color: var(--app-text-muted, #6b7280);
+
+  font-size: 10px;
+
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+
+/* =========================
+   CONTENT
+   ========================= */
+
+.sidebar-content {
+  flex: 1;
+
+  min-height: 0;
+
+  --background: #ffffff;
+}
+
+
+.navigation {
+  padding: 16px 12px 24px;
+}
+
+
+.navigation-label {
+  margin: 16px 12px 8px;
+
+  color: var(--app-text-muted, #6b7280);
+
+  font-size: 10px;
+  font-weight: 700;
+
+  letter-spacing: 1px;
+
+  text-transform: uppercase;
+}
+
+
+.admin-label {
+  margin-top: 28px;
+}
+
+
+/* =========================
+   NAVIGATION LIST
+   ========================= */
+
+ion-list {
+  padding: 0;
+
+  background: transparent;
+}
+
+
+ion-item {
+  --background: transparent;
+
+  --color: var(--app-text-secondary, #4b5563);
+
+  --padding-start: 12px;
+  --padding-end: 12px;
+
+  --min-height: 46px;
+
+  --border-radius: 8px;
+
+  margin-bottom: 3px;
+
+  font-size: 14px;
+  font-weight: 500;
+
+  cursor: pointer;
+}
+
+
+/* ICON */
+
+ion-item ion-icon {
+  margin-right: 10px;
+
+  color: var(--app-text-muted, #6b7280);
+
+  font-size: 20px;
+}
+
+
+/* HOVER */
+
+ion-item:hover {
+  --background: #f5f7fb;
+
+  --color: var(--ion-color-primary);
+}
+
+
+ion-item:hover ion-icon {
+  color: var(--ion-color-primary);
+}
+
+
+/* ACTIVE ROUTE */
+
+ion-item.active {
+  --background: rgba(0, 93, 40, 0.08);
+
+  --color: var(--ion-color-primary);
+
+  font-weight: 600;
+}
+
+
+ion-item.active ion-icon {
+  color: var(--ion-color-primary);
+}
+
+
+/* =========================
+   USER SECTION
+   ========================= */
+
+.sidebar-user {
+  display: flex;
+  align-items: center;
+
+  gap: 10px;
+
+  min-height: 76px;
+
+  padding: 14px 16px;
+
+  flex-shrink: 0;
+
+  background: #ffffff;
+
+  border-top: 1px solid var(--app-border, #e5e7eb);
+}
+
+
+/* AVATAR */
+
+.user-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  flex-shrink: 0;
+
+  width: 38px;
+  height: 38px;
+
+  border-radius: 50%;
+
+  background: var(--ion-color-primary);
+
+  color: #ffffff;
+
+  font-size: 12px;
+  font-weight: 700;
+}
+
+
+/* USER DETAILS */
+
+.user-details {
+  flex: 1;
+
+  min-width: 0;
+}
+
+
+.user-name {
+  overflow: hidden;
+
+  color: var(--app-text, #1f2937);
+
+  font-size: 13px;
+  font-weight: 600;
+
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+
+.user-role {
+  margin-top: 2px;
+
+  overflow: hidden;
+
+  color: var(--app-text-muted, #6b7280);
+
+  font-size: 11px;
+
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+
+/* LOGOUT */
+
+.logout-icon {
+  flex-shrink: 0;
+
+  color: var(--app-text-muted, #6b7280);
+
+  font-size: 21px;
+
+  cursor: pointer;
+
+  transition: color 0.2s ease;
+}
+
+
+.logout-icon:hover {
+  color: var(--ion-color-danger);
+}

@@ -1,0 +1,24 @@
+<ion-header class="app-header">
+  <ion-toolbar>
+    <!-- Menu Button -->
+    <ion-buttons slot="start">
+      <ion-menu-button menu="main-menu"></ion-menu-button>
+    </ion-buttons>
+
+    <!-- Search -->
+    <div class="header-search">
+      <ion-icon name="search-outline"></ion-icon>
+      <input type="text" placeholder="Search disclosures, IP assets..." />
+    </div>
+
+    <!-- Actions -->
+    <ion-buttons slot="end">
+      <ion-button class="header-action">
+        <ion-icon name="notifications-outline"></ion-icon>
+      </ion-button>
+      <ion-button class="profile-button" (click)="logout()">
+        <div class="header-avatar">{{ userInitials }}</div>
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>

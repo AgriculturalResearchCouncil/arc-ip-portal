@@ -1,0 +1,192 @@
+<div class="sidebar-container">
+
+  <!-- =========================
+       BRAND
+       ========================= -->
+
+  <div class="sidebar-brand">
+
+    <div class="brand-logo">
+      ARC
+    </div>
+
+    <div class="brand-text">
+
+      <div class="brand-title">
+        ARC IP Portal
+      </div>
+
+      <div class="brand-subtitle">
+        Intellectual Property Management
+      </div>
+
+    </div>
+
+  </div>
+
+
+  <!-- =========================
+       NAVIGATION CONTENT
+       ========================= -->
+
+  <ion-content
+    class="sidebar-content">
+
+    <div class="navigation">
+
+      <!-- MAIN MENU -->
+
+      <div class="navigation-label">
+        MAIN MENU
+      </div>
+
+      <ion-list lines="none">
+
+        <ion-item
+          *ngFor="let item of menuItems"
+          [routerLink]="item.url"
+          routerLinkActive="active"
+          [routerLinkActiveOptions]="{ exact: true }"
+          button="true"
+          detail="false">
+
+          <ion-icon
+            [name]="item.icon"
+            slot="start">
+          </ion-icon>
+
+          <ion-label>
+            {{ item.label }}
+          </ion-label>
+
+        </ion-item>
+
+      </ion-list>
+
+
+      <!-- REPORTS -->
+
+      <div class="navigation-label admin-label">
+        REPORTS
+      </div>
+
+      <ion-list lines="none">
+
+        <ion-item
+          *ngFor="let item of reportItems"
+          [routerLink]="item.url"
+          routerLinkActive="active"
+          [routerLinkActiveOptions]="{ exact: true }"
+          button="true"
+          detail="false">
+
+          <ion-icon
+            [name]="item.icon"
+            slot="start">
+          </ion-icon>
+
+          <ion-label>
+            {{ item.label }}
+          </ion-label>
+
+        </ion-item>
+
+      </ion-list>
+
+
+      <!-- ADMINISTRATION -->
+
+      <div class="navigation-label admin-label">
+        ADMINISTRATION
+      </div>
+
+      <ion-list lines="none">
+
+        <ion-item
+          *ngFor="let item of adminItems"
+          [routerLink]="item.url"
+          routerLinkActive="active"
+          button="true"
+          detail="false">
+
+          <ion-icon
+            [name]="item.icon"
+            slot="start">
+          </ion-icon>
+
+          <ion-label>
+            {{ item.label }}
+          </ion-label>
+
+        </ion-item>
+
+      </ion-list>
+
+
+      <!-- SETTINGS -->
+
+      <div class="navigation-label admin-label">
+        SETTINGS
+      </div>
+
+      <ion-list lines="none">
+
+        <ion-item
+          *ngFor="let item of settingsItems"
+          [routerLink]="item.url"
+          routerLinkActive="active"
+          button="true"
+          detail="false">
+
+          <ion-icon
+            [name]="item.icon"
+            slot="start">
+          </ion-icon>
+
+          <ion-label>
+            {{ item.label }}
+          </ion-label>
+
+        </ion-item>
+
+      </ion-list>
+
+    </div>
+
+  </ion-content>
+
+
+  <!-- =========================
+       USER INFORMATION (FROM API)
+       ========================= -->
+
+  <div class="sidebar-user">
+
+    <!-- AVATAR -->
+    <div class="user-avatar">
+      {{ userInitials }}
+    </div>
+
+    <!-- USER DETAILS -->
+    <div class="user-details">
+
+      <div class="user-name">
+        {{ userName }}
+      </div>
+
+      <div class="user-role">
+        {{ userRole }}
+      </div>
+
+    </div>
+
+    <!-- LOGOUT -->
+    <ion-icon
+      name="log-out-outline"
+      class="logout-icon"
+      (click)="logout()">
+    </ion-icon>
+
+  </div>
+
+</div>

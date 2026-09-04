@@ -1,0 +1,156 @@
+// src/theme/variables.scss
+
+:root {
+  /* ==========================================
+     ARC BRAND COLORS
+  ========================================== */
+  --arc-green: #005d28;
+  --arc-green-dark: #004a20;
+  --arc-green-light: #007a35;
+  --arc-gold: #efb218;
+
+  /* ==========================================
+     IONIC PRIMARY
+  ========================================== */
+  --ion-color-primary: #005d28;
+  --ion-color-primary-rgb: 0, 93, 40;
+  --ion-color-primary-contrast: #ffffff;
+  --ion-color-primary-contrast-rgb: 255, 255, 255;
+  --ion-color-primary-shade: #005223;
+  --ion-color-primary-tint: #1a6d3e;
+
+  /* ==========================================
+     IONIC SECONDARY
+  ========================================== */
+  --ion-color-secondary: #007a35;
+  --ion-color-secondary-rgb: 0, 122, 53;
+  --ion-color-secondary-contrast: #ffffff;
+  --ion-color-secondary-shade: #006b2e;
+  --ion-color-secondary-tint: #1a8749;
+
+  /* ==========================================
+     IONIC TERTIARY / ARC GOLD
+  ========================================== */
+  --ion-color-tertiary: #efb218;
+  --ion-color-tertiary-rgb: 239, 178, 24;
+  --ion-color-tertiary-contrast: #000000;
+  --ion-color-tertiary-shade: #d29d15;
+  --ion-color-tertiary-tint: #f1ba2f;
+
+  /* ==========================================
+     STANDARD IONIC COLORS
+  ========================================== */
+  --ion-color-success: #2dd36f;
+  --ion-color-success-rgb: 45, 211, 111;
+  --ion-color-success-contrast: #ffffff;
+  --ion-color-success-shade: #28ba62;
+  --ion-color-success-tint: #42d77d;
+
+  --ion-color-warning: #ffc409;
+  --ion-color-warning-rgb: 255, 196, 9;
+  --ion-color-warning-contrast: #000000;
+  --ion-color-warning-shade: #e0ac08;
+  --ion-color-warning-tint: #ffca22;
+
+  --ion-color-danger: #eb445a;
+  --ion-color-danger-rgb: 235, 68, 90;
+  --ion-color-danger-contrast: #ffffff;
+  --ion-color-danger-shade: #cf3c4f;
+  --ion-color-danger-tint: #ed576b;
+
+  --ion-color-medium: #92949c;
+  --ion-color-medium-rgb: 146, 148, 156;
+  --ion-color-medium-contrast: #ffffff;
+  --ion-color-medium-shade: #808289;
+  --ion-color-medium-tint: #9d9fa6;
+
+  --ion-color-light: #f4f5f8;
+  --ion-color-light-rgb: 244, 245, 248;
+  --ion-color-light-contrast: #000000;
+  --ion-color-light-shade: #d7d8da;
+  --ion-color-light-tint: #f5f6f9;
+
+  --ion-color-dark: #222428;
+  --ion-color-dark-rgb: 34, 36, 40;
+  --ion-color-dark-contrast: #ffffff;
+  --ion-color-dark-shade: #1e2023;
+  --ion-color-dark-tint: #383a3e;
+
+  /* ==========================================
+     APPLICATION SURFACES
+  ========================================== */
+  --app-background: #f5f7fb;
+  --app-background-secondary: #f8f9fa;
+  --app-surface: #ffffff;
+  --app-surface-hover: #f8f9fa;
+
+  /* ==========================================
+     TEXT COLORS
+  ========================================== */
+  --app-text: #2c3e50;
+  --app-text-secondary: #5f6b7a;
+  --app-text-muted: #92949c;
+  --app-text-light: #ffffff;
+
+  /* ==========================================
+     BORDERS
+  ========================================== */
+  --app-border: #e6e9ee;
+  --app-border-light: #f0f2f5;
+
+  /* ==========================================
+     SHADOWS
+  ========================================== */
+  --app-shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.04);
+  --app-shadow-md: 0 4px 16px rgba(0, 0, 0, 0.08);
+  --app-shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.12);
+
+  /* ==========================================
+     BORDER RADIUS
+  ========================================== */
+  --app-radius-sm: 6px;
+  --app-radius-md: 10px;
+  --app-radius-lg: 14px;
+  --app-radius-xl: 20px;
+
+  /* ==========================================
+     SPACING
+  ========================================== */
+  --app-spacing-xs: 4px;
+  --app-spacing-sm: 8px;
+  --app-spacing-md: 16px;
+  --app-spacing-lg: 24px;
+  --app-spacing-xl: 32px;
+  --app-spacing-2xl: 48px;
+
+  /* ==========================================
+     FONTS
+  ========================================== */
+  --app-font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
+  --app-font-size-xs: 11px;
+  --app-font-size-sm: 12px;
+  --app-font-size-md: 14px;
+  --app-font-size-lg: 16px;
+  --app-font-size-xl: 20px;
+  --app-font-size-2xl: 24px;
+  --app-font-size-3xl: 28px;
+  --app-font-size-4xl: 32px;
+
+  /* ==========================================
+     TRANSITIONS
+  ========================================== */
+  --app-transition-fast: 0.15s ease;
+  --app-transition-normal: 0.25s ease;
+  --app-transition-slow: 0.4s ease;
+
+  /* ==========================================
+     Z-INDEX
+  ========================================== */
+  --app-z-index-dropdown: 1000;
+  --app-z-index-sticky: 1020;
+  --app-z-index-fixed: 1030;
+  --app-z-index-modal-backdrop: 1040;
+  --app-z-index-modal: 1050;
+  --app-z-index-popover: 1060;
+  --app-z-index-tooltip: 1070;
+}
