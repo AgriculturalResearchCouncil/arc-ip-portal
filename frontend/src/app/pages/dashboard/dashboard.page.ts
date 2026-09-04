@@ -1,5 +1,5 @@
 // src/app/pages/dashboard/dashboard.page.ts
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import {
@@ -41,12 +41,45 @@ import {
   statsChartOutline,
   clipboardOutline,
   fileTrayFullOutline,
-  refreshOutline
+  refreshOutline,
+  leafOutline,
+  ribbonOutline,
+  createOutline,
+  lockClosedOutline,
+  downloadOutline
 } from 'ionicons/icons';
 import { DashboardService } from '../../core/services/dashboard.service';
 import { AuthService } from '../../core/services/auth.service';
-import { DashboardData, RecentActivity, PendingTask, ExpiringItem, IPBreakdown } from '../../core/models/dashboard.model';
 import { Subscription } from 'rxjs';
+
+// Interface matching the actual API response
+interface ExecutiveData {
+  total_ip_assets: number;
+  active_ip_assets: number;
+  draft_ip_assets: number;
+  total_disclosures: number;
+  pending_disclosures: number;
+  approved_disclosures: number;
+  active_licences: number;
+  overdue_licences: number;
+  active_commercialisations: number;
+  completed_commercialisations: number;
+  granted_patents: number;
+  active_researchers: number;
+}
+
+interface IPTypeBreakdown {
+  record_type: string;
+  count: number;
+  active_count: number;
+  draft_count: number;
+  submitted_count: number;
+}
+
+interface DashboardResponse {
+  executive: ExecutiveData;
+  ipTypeBreakdown: IPTypeBreakdown[];
+}
 
 @Component({
   selector: 'app-dashboard',
@@ -74,29 +107,35 @@ import { Subscription } from 'rxjs';
 })
 export class DashboardPage implements OnInit, OnDestroy {
   // Data
-  dashboardData: DashboardData | null = null;
+  dashboardData: DashboardResponse | null = null;
   isLoading = true;
   error: string | null = null;
   userRole: string = '';
 
-  // Stats
+  // Stats for cards - simplified to match API data
   stats = [
-    { label: 'Total IP Assets', value: 0, change: '', icon: 'folder-open-outline', type: 'primary' },
-    { label: 'Pending Disclosures', value: 0, change: '', icon: 'time-outline', type: 'warning' },
-    { label: 'Active Licences', value: 0, change: '', icon: 'document-text-outline', type: 'success' },
-    { label: 'Revenue Generated', value: 'R0', change: '', icon: 'cash-outline', type: 'gold' }
+    { label: 'Total IP Assets', value: 0, icon: 'folder-open-outline', type: 'primary' },
+    { label: 'Active IP Assets', value: 0, icon: 'checkmark-circle-outline', type: 'success' },
+    { label: 'Active Licences', value: 0, icon: 'document-text-outline', type: 'tertiary' },
+    { label: 'Granted Patents', value: 0, icon: 'business-outline', type: 'gold' }
   ];
 
-  recentActivities: RecentActivity[] = [];
-  pendingTasks: PendingTask[] = [];
-  expiringItems: ExpiringItem[] = [];
-  ipBreakdown: IPBreakdown[] = [];
+  // Additional metrics
+  metrics = [
+    { label: 'Total Disclosures', value: 0, icon: 'document-text-outline', type: 'primary' },
+    { label: 'Pending Disclosures', value: 0, icon: 'time-outline', type: 'warning' },
+    { label: 'Active Researchers', value: 0, icon: 'people-outline', type: 'success' },
+    { label: 'Commercialisations', value: 0, icon: 'briefcase-outline', type: 'gold' }
+  ];
+
+  ipBreakdown: IPTypeBreakdown[] = [];
 
   private subscriptions: Subscription[] = [];
 
   constructor(
     private dashboardService: DashboardService,
-    private authService: AuthService
+    private authService: AuthService,
+    private cdr: ChangeDetectorRef  // ← ADD THIS
   ) {
     addIcons({
       folderOpenOutline,
@@ -120,7 +159,12 @@ export class DashboardPage implements OnInit, OnDestroy {
       statsChartOutline,
       clipboardOutline,
       fileTrayFullOutline,
-      refreshOutline
+      refreshOutline,
+      leafOutline,
+      ribbonOutline,
+      createOutline,
+      lockClosedOutline,
+      downloadOutline
     });
   }
 
@@ -138,137 +182,95 @@ export class DashboardPage implements OnInit, OnDestroy {
 
     const user = this.authService.getUser();
     this.userRole = user?.role || '';
+    // console.log('👤 User role:', this.userRole);
 
-    let dashboard$;
-
-    // Load dashboard based on role
-    if (this.userRole === 'Executive') {
-      dashboard$ = this.dashboardService.getExecutiveDashboard();
-    } else if (this.userRole === 'TTO Officer' || this.userRole === 'Admin') {
-      dashboard$ = this.dashboardService.getTTODashboard();
-    } else if (this.userRole === 'Researcher') {
-      dashboard$ = this.dashboardService.getResearcherDashboard();
-    } else {
-      dashboard$ = this.dashboardService.getDashboard();
-    }
-
-    const sub = dashboard$.subscribe({
-      next: (data) => {
-        this.dashboardData = data;
-        this.updateStats(data);
-        this.recentActivities = data.recentActivity || [];
-        this.pendingTasks = data.pendingTasks || [];
-        this.expiringItems = data.expiringItems || [];
-        this.ipBreakdown = data.ipBreakdown || [];
+    const sub = this.dashboardService.getDashboard().subscribe({
+      next: (response: any) => {
+        // console.log('📊 Dashboard response:', response);
+        
+        // Handle both response formats
+        let data = response;
+        if (response && response.data) {
+          data = response.data;
+        }
+        
+        if (data && data.executive) {
+          this.dashboardData = data;
+          this.updateStats(data);
+          this.ipBreakdown = data.ipTypeBreakdown || [];
+          // console.log('✅ Dashboard loaded successfully!');
+          // console.log('📊 dashboardData:', this.dashboardData);
+          // console.log('📊 stats:', this.stats);
+          // console.log('📊 ipBreakdown:', this.ipBreakdown);
+          
+          // FORCE CHANGE DETECTION
+          this.cdr.detectChanges();
+        } else {
+          // console.error('❌ Invalid data structure:', data);
+          this.error = 'Invalid data structure from server';
+        }
+        
+        // ALWAYS set loading to false
         this.isLoading = false;
+        this.cdr.detectChanges();  // ← Force update
       },
       error: (err) => {
-        console.error('Error loading dashboard:', err);
+        // console.error('❌ Error loading dashboard:', err);
         this.error = err.message || 'Failed to load dashboard data';
         this.isLoading = false;
-        this.loadFallbackData();
+        this.cdr.detectChanges();  // ← Force update
       }
     });
 
     this.subscriptions.push(sub);
   }
 
-  private updateStats(data: DashboardData) {
-    if (!data || !data.stats) return;
+  private updateStats(data: DashboardResponse) {
+    if (!data || !data.executive) return;
 
-    const s = data.stats;
-    this.stats[0].value = s.totalIPAssets || 0;
-    this.stats[1].value = s.pendingDisclosures || 0;
-    this.stats[2].value = s.activeLicences || 0;
-    this.stats[3].value = `R${(s.totalRevenue || 0).toLocaleString()}`;
+    const e = data.executive;
+    
+    // Main stats
+    this.stats[0].value = e.total_ip_assets || 0;
+    this.stats[1].value = e.active_ip_assets || 0;
+    this.stats[2].value = e.active_licences || 0;
+    this.stats[3].value = e.granted_patents || 0;
+
+    // Metrics
+    this.metrics[0].value = e.total_disclosures || 0;
+    this.metrics[1].value = e.pending_disclosures || 0;
+    this.metrics[2].value = e.active_researchers || 0;
+    this.metrics[3].value = e.active_commercialisations || 0;
   }
 
-  private loadFallbackData() {
-    // Load data from individual endpoints as fallback
-    const sub1 = this.dashboardService.getIPAssetStats().subscribe({
-      next: (data) => {
-        this.stats[0].value = data.total || 0;
-      },
-      error: () => {}
-    });
-
-    const sub2 = this.dashboardService.getDisclosureStats().subscribe({
-      next: (data) => {
-        // Fixed: Use underReview or total as fallback
-        this.stats[1].value = data.underReview || data.total || 0;
-      },
-      error: () => {}
-    });
-
-    const sub3 = this.dashboardService.getLicenceStats().subscribe({
-      next: (data) => {
-        this.stats[2].value = data.active || 0;
-        this.stats[3].value = `R${(data.totalRevenue || 0).toLocaleString()}`;
-      },
-      error: () => {}
-    });
-
-    const sub4 = this.dashboardService.getRecentActivity(10).subscribe({
-      next: (data) => {
-        this.recentActivities = data;
-      },
-      error: () => {}
-    });
-
-    const sub5 = this.dashboardService.getPendingTasks().subscribe({
-      next: (data) => {
-        this.pendingTasks = data;
-      },
-      error: () => {}
-    });
-
-    const sub6 = this.dashboardService.getIPBreakdown().subscribe({
-      next: (data) => {
-        this.ipBreakdown = data;
-      },
-      error: () => {}
-    });
-
-    this.subscriptions.push(sub1, sub2, sub3, sub4, sub5, sub6);
+  getTotalIPCount(): number {
+    return this.dashboardData?.executive?.total_ip_assets || 0;
   }
 
-  getPriorityColor(priority: string): string {
+  getTypeIcon(type: string): string {
+    const icons: { [key: string]: string } = {
+      'PATENT': 'business-outline',
+      'PBR': 'leaf-outline',
+      'TRADEMARK': 'ribbon-outline',
+      'LICENCE': 'document-text-outline',
+      'DESIGN': 'create-outline',
+      'TRADE_SECRET': 'lock-closed-outline',
+      'Disclosure': 'document-text-outline'
+    };
+    return icons[type] || 'folder-outline';
+  }
+
+  getTypeColor(type: string): string {
     const colors: { [key: string]: string } = {
-      'High': 'danger',
-      'Medium': 'warning',
-      'Low': 'success'
+      'PATENT': 'primary',
+      'PBR': 'success',
+      'TRADEMARK': 'tertiary',
+      'LICENCE': 'warning',
+      'DESIGN': 'medium',
+      'TRADE_SECRET': 'danger',
+      'Disclosure': 'primary'
     };
-    return colors[priority] || 'medium';
-  }
-
-  getPriorityIcon(priority: string): string {
-    const icons: { [key: string]: string } = {
-      'High': 'alert-circle-outline',
-      'Medium': 'hourglass-outline',
-      'Low': 'checkmark-circle-outline'
-    };
-    return icons[priority] || 'ellipse-outline';
-  }
-
-  getExpiryStatus(daysRemaining: number): string {
-    if (daysRemaining <= 30) return 'danger';
-    if (daysRemaining <= 90) return 'warning';
-    return 'success';
-  }
-
-  getActivityIcon(action: string): string {
-    const icons: { [key: string]: string } = {
-      'CREATE': 'add-circle-outline',
-      'UPDATE': 'create-outline',
-      'DELETE': 'trash-outline',
-      'SUBMIT': 'send-outline',
-      'REVIEW': 'eye-outline',
-      'APPROVE': 'checkmark-circle-outline',
-      'REJECT': 'close-circle-outline',
-      'UPLOAD': 'cloud-upload-outline',
-      'DOWNLOAD': 'cloud-download-outline'
-    };
-    return icons[action] || 'ellipse-outline';
+    return colors[type] || 'medium';
   }
 
   refresh() {
