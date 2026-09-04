@@ -33,197 +33,137 @@
     </div>
 
     <!-- DASHBOARD CONTENT -->
-    <ng-container *ngIf="!isLoading && !error">
+    <ng-container *ngIf="!isLoading && !error && dashboardData">
 
       <!-- STATISTICS -->
       <div class="stats-grid">
         <ion-card class="stat-card" *ngFor="let stat of stats">
           <ion-card-content>
             <div class="stat-header">
-              <div class="stat-icon" [ngClass]="stat.type">
-                <ion-icon [name]="stat.icon"></ion-icon>
-              </div>
+              <!-- <div class="stat-icon" [ngClass]="stat.type">
+                <ion-icon [name]="stat.icon"></ion-icon> 
+              </div> -->
               <span class="stat-title">{{ stat.label }}</span>
             </div>
             <div class="stat-value">{{ stat.value }}</div>
-            <div class="stat-footer" *ngIf="stat.change">
-              <span>{{ stat.change }}</span>
-            </div>
           </ion-card-content>
         </ion-card>
       </div>
 
-      <!-- IP BREAKDOWN & QUICK ACTIONS -->
-      <div class="dashboard-grid">
-        <!-- IP Breakdown -->
-        <ion-card>
-          <ion-card-header>
-            <ion-card-title>IP Portfolio Breakdown</ion-card-title>
-            <ion-card-subtitle>Distribution by IP type</ion-card-subtitle>
-          </ion-card-header>
-          <ion-card-content>
-            <div class="breakdown-list" *ngIf="ipBreakdown && ipBreakdown.length > 0">
-              <div class="breakdown-item" *ngFor="let item of ipBreakdown">
-                <span class="breakdown-label">{{ item.type }}</span>
-                <div class="breakdown-bar-container">
-                  <div class="breakdown-bar" [style.width.%]="item.percentage"></div>
-                </div>
-                <span class="breakdown-count">{{ item.count }}</span>
-              </div>
-            </div>
-            <div class="empty-state" *ngIf="!ipBreakdown || ipBreakdown.length === 0">
-              <ion-icon name="bar-chart-outline"></ion-icon>
-              <p>No IP breakdown data available</p>
-            </div>
-          </ion-card-content>
-        </ion-card>
-
-        <!-- Quick Actions -->
-        <ion-card>
-          <ion-card-header>
-            <ion-card-title>Quick Actions</ion-card-title>
-            <ion-card-subtitle>Common tasks and navigation</ion-card-subtitle>
-          </ion-card-header>
-          <ion-card-content>
-            <div class="quick-actions-list">
-              <ion-item button routerLink="/disclosures/new" detail="false">
-                <ion-icon name="document-text-outline" slot="start" color="primary"></ion-icon>
-                <ion-label>
-                  <h3>Submit Disclosure</h3>
-                  <p>Register a new invention disclosure</p>
-                </ion-label>
-                <ion-icon name="arrow-forward-outline" slot="end" color="medium"></ion-icon>
-              </ion-item>
-              <ion-item button routerLink="/ip-assets" detail="false">
-                <ion-icon name="folder-open-outline" slot="start" color="success"></ion-icon>
-                <ion-label>
-                  <h3>View IP Assets</h3>
-                  <p>Manage intellectual property portfolio</p>
-                </ion-label>
-                <ion-icon name="arrow-forward-outline" slot="end" color="medium"></ion-icon>
-              </ion-item>
-              <ion-item button routerLink="/licences" detail="false">
-                <ion-icon name="document-text-outline" slot="start" color="tertiary"></ion-icon>
-                <ion-label>
-                  <h3>Manage Licences</h3>
-                  <p>View and manage licensing agreements</p>
-                </ion-label>
-                <ion-icon name="arrow-forward-outline" slot="end" color="medium"></ion-icon>
-              </ion-item>
-              <ion-item button routerLink="/reports/executive" detail="false">
-                <ion-icon name="bar-chart-outline" slot="start" color="gold"></ion-icon>
-                <ion-label>
-                  <h3>View Reports</h3>
-                  <p>Portfolio and performance reports</p>
-                </ion-label>
-                <ion-icon name="arrow-forward-outline" slot="end" color="medium"></ion-icon>
-              </ion-item>
-            </div>
-          </ion-card-content>
-        </ion-card>
-      </div>
-
-      <!-- PENDING TASKS & EXPIRING ITEMS -->
-      <div class="dashboard-grid">
-        <!-- Pending Tasks -->
-        <ion-card>
-          <ion-card-header>
-            <ion-card-title>
-              <ion-icon name="clipboard-outline" color="primary"></ion-icon>
-              Pending Tasks
-            </ion-card-title>
-            <ion-card-subtitle>Tasks awaiting your attention</ion-card-subtitle>
-          </ion-card-header>
-          <ion-card-content>
-            <div class="task-list" *ngIf="pendingTasks && pendingTasks.length > 0">
-              <div class="task-item" *ngFor="let task of pendingTasks">
-                <div class="task-priority">
-                  <ion-badge [color]="getPriorityColor(task.priority)">
-                    <ion-icon [name]="getPriorityIcon(task.priority)" size="small"></ion-icon>
-                    {{ task.priority }}
-                  </ion-badge>
-                </div>
-                <div class="task-content">
-                  <h4>{{ task.title }}</h4>
-                  <p>{{ task.description }}</p>
-                  <div class="task-meta">
-                    <span>
-                      <ion-icon name="calendar-outline" size="small"></ion-icon>
-                      {{ task.dueDate | date:'MMM d, yyyy' }}
-                    </span>
-                    <span *ngIf="task.assignedTo">
-                      <ion-icon name="person-outline" size="small"></ion-icon>
-                      {{ task.assignedTo }}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div class="empty-state" *ngIf="!pendingTasks || pendingTasks.length === 0">
-              <ion-icon name="checkmark-done-circle-outline" color="success"></ion-icon>
-              <p>No pending tasks. Great job!</p>
-            </div>
-          </ion-card-content>
-        </ion-card>
-
-        <!-- Expiring Items -->
-        <ion-card>
-          <ion-card-header>
-            <ion-card-title>
-              <ion-icon name="warning-outline" color="warning"></ion-icon>
-              Expiring Soon
-            </ion-card-title>
-            <ion-card-subtitle>Items requiring attention</ion-card-subtitle>
-          </ion-card-header>
-          <ion-card-content>
-            <div class="expiring-list" *ngIf="expiringItems && expiringItems.length > 0">
-              <div class="expiring-item" *ngFor="let item of expiringItems">
-                <div class="expiring-info">
-                  <h4>{{ item.title }}</h4>
-                  <p>{{ item.type }}</p>
-                </div>
-                <div class="expiring-status">
-                  <ion-badge [color]="getExpiryStatus(item.daysRemaining)">
-                    {{ item.daysRemaining }} days left
-                  </ion-badge>
-                </div>
-              </div>
-            </div>
-            <div class="empty-state" *ngIf="!expiringItems || expiringItems.length === 0">
-              <ion-icon name="checkmark-circle-outline" color="success"></ion-icon>
-              <p>No expiring items</p>
-            </div>
-          </ion-card-content>
-        </ion-card>
-      </div>
-
-      <!-- RECENT ACTIVITY -->
+      <!-- IP BREAKDOWN -->
       <div class="section-heading">
-        <h2>Recent Activity</h2>
-        <span class="view-all" (click)="refresh()">Refresh</span>
+        <h2>IP Portfolio Breakdown</h2>
+        <span class="view-all">Total: {{ getTotalIPCount() }}</span>
       </div>
 
       <ion-card>
         <ion-card-content>
-          <div class="activity-list" *ngIf="recentActivities && recentActivities.length > 0">
-            <div class="activity-item" *ngFor="let activity of recentActivities">
-              <div class="activity-icon primary">
-                <ion-icon [name]="getActivityIcon(activity.action)"></ion-icon>
+          <div class="breakdown-list" *ngIf="ipBreakdown && ipBreakdown.length > 0">
+            <div class="breakdown-item" *ngFor="let item of ipBreakdown">
+              <div class="breakdown-info">
+                <span class="breakdown-label">
+                  <!-- <ion-icon [name]="getTypeIcon(item.record_type)" [color]="getTypeColor(item.record_type)"></ion-icon> -->
+                  {{ item.record_type }}
+                </span>
+                <span class="breakdown-count">{{ item.count }}</span>
               </div>
-              <div class="activity-content">
-                <h4>{{ activity.action }} - {{ activity.entityType }}</h4>
-                <p>{{ activity.description }}</p>
-                <span>{{ activity.timestamp | date:'MMM d, yyyy h:mm a' }}</span>
+              <div class="breakdown-bar-container">
+                <div class="breakdown-bar" [style.width.%]="(item.count / (getTotalIPCount() || 1)) * 100"></div>
+              </div>
+              <div class="breakdown-details">
+                <span *ngIf="item.active_count > 0" class="badge-active">Active: {{ item.active_count }}</span>
+                <span *ngIf="item.draft_count > 0" class="badge-draft">Draft: {{ item.draft_count }}</span>
+                <span *ngIf="item.submitted_count > 0" class="badge-submitted">Submitted: {{ item.submitted_count }}</span>
               </div>
             </div>
           </div>
-          <div class="empty-state" *ngIf="!recentActivities || recentActivities.length === 0">
-            <ion-icon name="file-tray-full-outline"></ion-icon>
-            <p>No recent activity</p>
+          <div class="empty-state" *ngIf="!ipBreakdown || ipBreakdown.length === 0">
+            <ion-icon name="bar-chart-outline"></ion-icon>
+            <p>No IP breakdown data available</p>
           </div>
         </ion-card-content>
       </ion-card>
 
+      <!-- KEY METRICS -->
+      <div class="section-heading">
+        <h2>Key Metrics</h2>
+      </div>
+
+      <div class="metrics-grid">
+        <ion-card *ngFor="let metric of metrics">
+          <ion-card-content>
+            <div class="metric-item">
+              <!-- <div class="metric-icon" [ngClass]="metric.type">
+                <ion-icon [name]="metric.icon"></ion-icon>
+              </div> -->
+              <div class="metric-info">
+                <span class="metric-label">{{ metric.label }}</span>
+                <span class="metric-value">{{ metric.value }}</span>
+              </div>
+            </div>
+          </ion-card-content>
+        </ion-card>
+      </div>
+
+      <!-- QUICK ACTIONS -->
+      <div class="section-heading">
+        <h2>Quick Actions</h2>
+      </div>
+
+      <div class="quick-actions-grid">
+        <ion-card class="quick-action-card" routerLink="/disclosures/new">
+          <ion-card-content>
+            <div class="quick-action-content">
+              <!-- <div class="quick-action-icon primary">
+                <ion-icon name="document-text-outline"></ion-icon>
+              </div> -->
+              <div>
+                <h3>Submit Disclosure</h3>
+                <p>Register a new invention disclosure</p>
+              </div>
+              <ion-icon class="quick-action-arrow" name="arrow-forward-outline"></ion-icon>
+            </div>
+          </ion-card-content>
+        </ion-card>
+
+        <ion-card class="quick-action-card" routerLink="/ip-assets">
+          <ion-card-content>
+            <div class="quick-action-content">
+              <!-- <div class="quick-action-icon success">
+                <ion-icon name="folder-open-outline"></ion-icon>
+              </div> -->
+              <div>
+                <h3>View IP Assets</h3>
+                <p>Manage intellectual property portfolio</p>
+              </div>
+              <ion-icon class="quick-action-arrow" name="arrow-forward-outline"></ion-icon>
+            </div>
+          </ion-card-content>
+        </ion-card>
+
+        <ion-card class="quick-action-card" routerLink="/licences">
+          <ion-card-content>
+            <div class="quick-action-content">
+              <!-- div class="quick-action-icon gold">
+                <ion-icon name="document-text-outline"></ion-icon>
+              </div>-->
+              <div>
+                <h3>Manage Licences</h3>
+                <p>View and manage licensing agreements</p>
+              </div>
+              <ion-icon class="quick-action-arrow" name="arrow-forward-outline"></ion-icon>
+            </div>
+          </ion-card-content>
+        </ion-card>
+      </div>
+
     </ng-container>
+
+    <!-- EMPTY STATE (when data is loaded but dashboardData is null) -->
+    <div *ngIf="!isLoading && !error && !dashboardData" class="empty-state">
+      <ion-icon name="alert-circle-outline"></ion-icon>
+      <h3>No Dashboard Data</h3>
+      <p>No data available to display</p>
+    </div>
   </div>
 </ion-content>
