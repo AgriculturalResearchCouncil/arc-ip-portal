@@ -261,7 +261,7 @@ const syncUser = async (adUser) => {
             };
             
             person = await personRepository.update(person.person_id, updatedData);
-            logger.info('User updated', { email: person.email });
+            //logger.info('User updated', { email: person.email });
         } else {
             // Create new user
             let roles = adUser.roles || [];
@@ -338,7 +338,7 @@ const validateToken = async (token) => {
         return { valid: false, reason: 'No user data in token', fallback: true };
     }
 
-    logger.info('Token validated locally', { email: user.email });
+    //logger.info('Token validated locally', { email: user.email });
     return { valid: true, user };
 };
 
