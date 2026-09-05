@@ -69,19 +69,19 @@ const getConnectionPool = async () => {
             // Disable Windows Auth if using SQL Auth
             dbConfig.options.trustedConnection = false;
             dbConfig.options.useWindows = false;
-            console.log('🔑 Using SQL Authentication with user:', config.database.user);
+            //console.log('🔑 Using SQL Authentication with user:', config.database.user);
         } else {
-            console.log('🪟 Using Windows Authentication (Integrated Security)');
-            console.log('   Server:', config.database.host);
-            console.log('   Database:', config.database.database);
+            console.log('Using Windows Authentication (Integrated Security)');
+            console.log('Server:', config.database.host);
+            console.log('Database:', config.database.database);
         }
 
-        console.log('📡 Connecting to SQL Server...');
+        console.log('Connecting to SQL Server...');
 
         // Establish the connection pool
         pool = await sql.connect(dbConfig);
         
-        logger.info(`Database connection pool established successfully to ${config.database.database}`);
+        //logger.info(`Database connection pool established successfully to ${config.database.database}`);
 
         pool.on('error', (err) => {
             logger.error('Database connection pool error:', err);
